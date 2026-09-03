@@ -32,9 +32,31 @@ service cloud.firestore {
         && request.resource.data.memberEmails.size() <= 30;
     }
 
+    function signedInEmail() {
+      return request.auth.token.email;
+    }
+
+    function accessPath() {
+      return /databases/$(database)/documents/permitHourAccess/$(request.auth.token.email);
+    }
+
+    function ownsPermitFamily(familyId) {
+      return signedIn()
+        && get(/databases/$(database)/documents/permitHourFamilies/$(familyId)).data.ownerUid == request.auth.uid;
+    }
+
+    function ownsPermitFamilyAfter(familyId) {
+      return signedIn()
+        && getAfter(/databases/$(database)/documents/permitHourFamilies/$(familyId)).data.ownerUid == request.auth.uid;
+    }
+
     match /permitHourFamilies/{familyId} {
-      function email() {
-        return request.auth.token.email;
+      function hasFamilyAccess() {
+        return signedIn()
+          && signedInEmail() != null
+          && exists(accessPath())
+          && get(accessPath()).data.email == signedInEmail()
+          && get(accessPath()).data.familyId == familyId;
       }
 
       function isOwner() {
@@ -42,17 +64,7 @@ service cloud.firestore {
       }
 
       function isSupervisor() {
-        return signedIn()
-          && email() != null
-          && resource.data.supervisorEmails is list
-          && email() in resource.data.supervisorEmails;
-      }
-
-      function isViewer() {
-        return signedIn()
-          && email() != null
-          && resource.data.viewerEmails is list
-          && email() in resource.data.viewerEmails;
+        return hasFamilyAccess() && get(accessPath()).data.role == 'supervisor';
       }
 
       function validPermitHoursDocument() {
@@ -69,16 +81,13 @@ service cloud.firestore {
           && request.resource.data.payload.sessions is list;
       }
 
-      // Signed-in users may learn that the fixed household document does not
-      // exist, but only approved family members can read it once it does.
-      allow get: if (signedIn() && !exists(/databases/$(database)/documents/permitHourFamilies/$(familyId)))
-        || isOwner() || isSupervisor() || isViewer();
+      allow get: if hasFamilyAccess();
       allow list, delete: if false;
       allow create: if signedIn()
-        && familyId == 'main'
-        && email() != null
+        && familyId == request.auth.uid
+        && signedInEmail() != null
         && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.ownerEmail == email()
+        && request.resource.data.ownerEmail == signedInEmail()
         && request.resource.data.supervisorEmails.size() == 0
         && request.resource.data.viewerEmails.size() == 0
         && validPermitHoursDocument();
@@ -92,6 +101,46 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['payload', 'updatedAt'])
           )
         );
+    }
+
+    match /permitHourAccess/{accessEmail} {
+      function validAccessDocument() {
+        return request.resource.data.email == accessEmail
+          && request.resource.data.familyId is string
+          && request.resource.data.role in ['owner', 'supervisor', 'viewer'];
+      }
+
+      allow get: if signedIn()
+        && signedInEmail() != null
+        && accessEmail == signedInEmail()
+        && (
+          !exists(/databases/$(database)/documents/permitHourAccess/$(accessEmail))
+          || resource.data.email == signedInEmail()
+        );
+      allow list: if false;
+      allow create: if signedIn()
+        && validAccessDocument()
+        && (
+          (
+            accessEmail == signedInEmail()
+            && request.resource.data.role == 'owner'
+            && request.resource.data.familyId == request.auth.uid
+            && ownsPermitFamilyAfter(request.auth.uid)
+          )
+          || (
+            request.resource.data.role in ['supervisor', 'viewer']
+            && ownsPermitFamilyAfter(request.resource.data.familyId)
+          )
+        );
+      allow update: if signedIn()
+        && validAccessDocument()
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.familyId == resource.data.familyId
+        && request.resource.data.role in ['supervisor', 'viewer']
+        && ownsPermitFamilyAfter(resource.data.familyId);
+      allow delete: if signedIn()
+        && resource.data.role != 'owner'
+        && ownsPermitFamily(resource.data.familyId);
     }
   }
 }

@@ -17,13 +17,13 @@ The Firebase Authentication authorized-domain list must include `rharder.github.
 
 ## Firebase sync and access
 
-The app uses the existing `kids-money-tracker-f24be` Firebase project but stores its data in a separate `permitHourFamilies/main` document. Deploy the checked-in rules before using cloud sync:
+The app uses the existing `kids-money-tracker-f24be` Firebase project but stores its data in separate `permitHourFamilies` and `permitHourAccess` collections. Each household has an isolated document keyed by its owner’s Firebase user ID. Deploy the checked-in rules before using cloud sync:
 
 ```bash
 npx firebase-tools deploy --only firestore:rules
 ```
 
-The first Google account to create the Permit Hours household becomes its owner and uploads the current local log. The owner can add exact Google-account email addresses as either:
+Any Google account can create its own independent Permit Hours household, become its owner, and upload its current local log. The owner can add exact Google-account email addresses as either:
 
 - **Supervising adults**, who can start, stop, add, and edit drives.
 - **View-only members**, intended for teen drivers who should be able to follow progress without changing the log.

@@ -24,7 +24,7 @@ import {
   persistentMultipleTabManager,
   serverTimestamp,
   setDoc,
-  updateDoc,
+  writeBatch,
   type Firestore,
 } from 'firebase/firestore';
 
@@ -37,8 +37,9 @@ const firebaseConfig = {
   appId: '1:148984236841:web:6c03e95dc169891dc54538',
 };
 
-const FAMILY_PATH = 'permitHourFamilies/main';
-const ACCESS_CACHE_KEY = 'permit-hours-cloud-access-v1';
+const FAMILY_COLLECTION = 'permitHourFamilies';
+const ACCESS_COLLECTION = 'permitHourAccess';
+const ACCESS_CACHE_KEY = 'permit-hours-cloud-access-v2';
 
 export type FamilyRole = 'owner' | 'supervisor' | 'viewer';
 export type SyncStatus = 'local' | 'connecting' | 'setup' | 'saving' | 'synced' | 'offline' | 'unapproved' | 'error';
@@ -63,6 +64,14 @@ type FamilyDocument<T> = FamilyMembers & {
   schemaVersion: 1;
   payload: T;
 };
+
+type AccessDocument = {
+  email: string;
+  familyId: string;
+  role: FamilyRole;
+};
+
+type CachedAccess = AccessDocument & { uid: string };
 
 type UseFirebaseSyncOptions<T> = {
   data: T;
@@ -91,17 +100,17 @@ function roleFor<T>(user: User, family: FamilyDocument<T>): FamilyRole | null {
   return null;
 }
 
-function cachedRole(user: User): FamilyRole | null {
+function cachedAccess(user: User): CachedAccess | null {
   try {
-    const value = JSON.parse(localStorage.getItem(ACCESS_CACHE_KEY) ?? 'null') as { uid?: string; role?: FamilyRole } | null;
-    return value?.uid === user.uid && value.role ? value.role : null;
+    const value = JSON.parse(localStorage.getItem(ACCESS_CACHE_KEY) ?? 'null') as CachedAccess | null;
+    return value?.uid === user.uid && value.familyId && value.role ? value : null;
   } catch {
     return null;
   }
 }
 
-function cacheRole(user: User, role: FamilyRole) {
-  localStorage.setItem(ACCESS_CACHE_KEY, JSON.stringify({ uid: user.uid, role, savedAt: Date.now() }));
+function cacheAccess(user: User, access: AccessDocument) {
+  localStorage.setItem(ACCESS_CACHE_KEY, JSON.stringify({ ...access, uid: user.uid, savedAt: Date.now() }));
 }
 
 function getDatabase(): Firestore {
@@ -120,6 +129,7 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
   const databaseRef = useRef<Firestore | null>(null);
   const userRef = useRef<User | null>(null);
   const roleRef = useRef<FamilyRole | null>(null);
+  const familyIdRef = useRef<string | null>(null);
   const cloudReadyRef = useRef(false);
   const lastCloudPayloadRef = useRef('');
   const saveTimerRef = useRef<number | null>(null);
@@ -129,16 +139,17 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
     setState((current) => ({ ...current, ...update }));
   }, []);
 
-  const watchFamily = useCallback((user: User, db: Firestore) => {
+  const watchFamily = useCallback((user: User, db: Firestore, familyId: string) => {
     unsubscribeRef.current?.();
-    const familyRef = doc(db, FAMILY_PATH);
+    familyIdRef.current = familyId;
+    const familyRef = doc(db, FAMILY_COLLECTION, familyId);
     unsubscribeRef.current = onSnapshot(
       familyRef,
       { includeMetadataChanges: true },
       (snapshot) => {
         if (!snapshot.exists()) {
           cloudReadyRef.current = false;
-          updateState({ status: 'setup', message: 'Cloud setup needed', cloudReady: false });
+          updateState({ status: 'error', message: 'Shared log unavailable', cloudReady: false });
           return;
         }
 
@@ -146,15 +157,17 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
         const role = roleFor(user, family);
         if (!role) {
           roleRef.current = null;
+          familyIdRef.current = null;
           cloudReadyRef.current = false;
           updateState({ role: null, status: 'unapproved', message: 'Access not approved', cloudReady: false });
           return;
         }
 
+        const access: AccessDocument = { email: normalizeEmail(user.email ?? ''), familyId, role };
         const payloadJson = JSON.stringify(family.payload);
         roleRef.current = role;
         cloudReadyRef.current = true;
-        cacheRole(user, role);
+        cacheAccess(user, access);
         if (family.payload && payloadJson !== lastCloudPayloadRef.current) {
           lastCloudPayloadRef.current = payloadJson;
           onRemoteData(family.payload);
@@ -195,39 +208,54 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       userRef.current = user;
+      unsubscribeRef.current?.();
       if (!user) {
         roleRef.current = null;
+        familyIdRef.current = null;
         cloudReadyRef.current = false;
-        unsubscribeRef.current?.();
         updateState(initialState);
         return;
       }
 
-      const savedRole = cachedRole(user);
+      const savedAccess = cachedAccess(user);
       updateState({
         user,
-        role: savedRole,
+        role: savedAccess?.role ?? null,
         status: navigator.onLine ? 'connecting' : 'offline',
-        message: navigator.onLine ? 'Connecting…' : savedRole === 'viewer' ? 'Offline · view only' : 'Saved offline',
-        cloudReady: Boolean(savedRole && !navigator.onLine),
+        message: navigator.onLine ? 'Connecting…' : savedAccess?.role === 'viewer' ? 'Offline · view only' : 'Saved offline',
+        cloudReady: Boolean(savedAccess && !navigator.onLine),
       });
-      roleRef.current = savedRole;
-      cloudReadyRef.current = Boolean(savedRole && !navigator.onLine);
+      roleRef.current = savedAccess?.role ?? null;
+      familyIdRef.current = savedAccess?.familyId ?? null;
+      cloudReadyRef.current = Boolean(savedAccess && !navigator.onLine);
 
       try {
-        const snapshot = await getDoc(doc(db, FAMILY_PATH));
-        if (!snapshot.exists()) {
-          updateState({ user, status: 'setup', message: 'Cloud setup needed', cloudReady: false });
+        const email = normalizeEmail(user.email ?? '');
+        if (!email || email.includes('/')) throw new Error('A valid Google-account email is required');
+        const accessSnapshot = await getDoc(doc(db, ACCESS_COLLECTION, email));
+        if (!accessSnapshot.exists()) {
+          roleRef.current = null;
+          familyIdRef.current = null;
+          cloudReadyRef.current = false;
+          updateState({ user, role: null, status: 'setup', message: 'Cloud setup available', cloudReady: false });
           return;
         }
+        const access = accessSnapshot.data() as AccessDocument;
+        roleRef.current = access.role;
+        familyIdRef.current = access.familyId;
+        watchFamily(user, db, access.familyId);
       } catch (error) {
         const code = (error as { code?: string }).code;
         if (code === 'permission-denied') {
           updateState({ user, role: null, status: 'unapproved', message: 'Access not approved', cloudReady: false });
           return;
         }
+        if (savedAccess) {
+          watchFamily(user, db, savedAccess.familyId);
+          return;
+        }
+        updateState({ user, role: null, status: 'offline', message: 'Local only while offline', cloudReady: false });
       }
-      watchFamily(user, db);
     });
 
     const updateConnection = () => {
@@ -244,15 +272,16 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
   }, [localReady, updateState, watchFamily]);
 
   useEffect(() => {
-    if (!localReady || !cloudReadyRef.current || !userRef.current || roleRef.current === 'viewer') return;
+    if (!localReady || !cloudReadyRef.current || !userRef.current || !familyIdRef.current || roleRef.current === 'viewer') return;
     const payloadJson = JSON.stringify(data);
     if (payloadJson === lastCloudPayloadRef.current) return;
     if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     updateState({ status: navigator.onLine ? 'saving' : 'offline', message: navigator.onLine ? 'Saving…' : 'Saved offline' });
     saveTimerRef.current = window.setTimeout(() => {
       const db = databaseRef.current;
-      if (!db) return;
-      void setDoc(doc(db, FAMILY_PATH), { payload: data, updatedAt: serverTimestamp() }, { merge: true })
+      const familyId = familyIdRef.current;
+      if (!db || !familyId) return;
+      void setDoc(doc(db, FAMILY_COLLECTION, familyId), { payload: data, updatedAt: serverTimestamp() }, { merge: true })
         .then(() => {
           lastCloudPayloadRef.current = payloadJson;
           updateState({ status: navigator.onLine ? 'synced' : 'offline', message: navigator.onLine ? 'Synced' : 'Saved offline' });
@@ -290,10 +319,13 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
   async function createHousehold() {
     const user = userRef.current;
     const db = databaseRef.current;
-    if (!user || !db) throw new Error('Sign in first');
+    const email = normalizeEmail(user?.email ?? '');
+    if (!user || !db || !email || email.includes('/')) throw new Error('Sign in with a valid Google account first');
+    const familyId = user.uid;
+    const access: AccessDocument = { email, familyId, role: 'owner' };
     const family: FamilyDocument<T> & { createdAt: unknown; updatedAt: unknown } = {
       ownerUid: user.uid,
-      ownerEmail: normalizeEmail(user.email ?? ''),
+      ownerEmail: email,
       supervisorEmails: [],
       viewerEmails: [],
       schemaVersion: 1,
@@ -301,18 +333,34 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
-    await setDoc(doc(db, FAMILY_PATH), family);
+    const batch = writeBatch(db);
+    batch.set(doc(db, FAMILY_COLLECTION, familyId), family);
+    batch.set(doc(db, ACCESS_COLLECTION, email), access);
+    await batch.commit();
+    roleRef.current = 'owner';
+    familyIdRef.current = familyId;
     lastCloudPayloadRef.current = JSON.stringify(data);
-    watchFamily(user, db);
+    cacheAccess(user, access);
+    watchFamily(user, db, familyId);
   }
 
   async function updateMembers(members: FamilyMembers) {
     const db = databaseRef.current;
-    if (!db || roleRef.current !== 'owner') throw new Error('Only the household owner can manage access');
+    const familyId = familyIdRef.current;
+    if (!db || !familyId || roleRef.current !== 'owner') throw new Error('Only the household owner can manage access');
     const ownerEmail = normalizeEmail(userRef.current?.email ?? '');
-    const supervisors = [...new Set(members.supervisorEmails.map(normalizeEmail).filter((email) => email && email !== ownerEmail))];
-    const viewers = [...new Set(members.viewerEmails.map(normalizeEmail).filter((email) => email && email !== ownerEmail && !supervisors.includes(email)))];
-    await updateDoc(doc(db, FAMILY_PATH), { supervisorEmails: supervisors, viewerEmails: viewers, updatedAt: serverTimestamp() });
+    const supervisors = [...new Set(members.supervisorEmails.map(normalizeEmail).filter((email) => email && !email.includes('/') && email !== ownerEmail))];
+    const viewers = [...new Set(members.viewerEmails.map(normalizeEmail).filter((email) => email && !email.includes('/') && email !== ownerEmail && !supervisors.includes(email)))];
+    const currentEmails = new Set([...state.members.supervisorEmails, ...state.members.viewerEmails]);
+    const nextEmails = new Set([...supervisors, ...viewers]);
+    const batch = writeBatch(db);
+    batch.update(doc(db, FAMILY_COLLECTION, familyId), { supervisorEmails: supervisors, viewerEmails: viewers, updatedAt: serverTimestamp() });
+    for (const email of supervisors) batch.set(doc(db, ACCESS_COLLECTION, email), { email, familyId, role: 'supervisor' } satisfies AccessDocument);
+    for (const email of viewers) batch.set(doc(db, ACCESS_COLLECTION, email), { email, familyId, role: 'viewer' } satisfies AccessDocument);
+    for (const email of currentEmails) {
+      if (!nextEmails.has(email)) batch.delete(doc(db, ACCESS_COLLECTION, email));
+    }
+    await batch.commit();
   }
 
   return { state, signInWithGoogle, signOutUser, createHousehold, updateMembers };

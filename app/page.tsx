@@ -641,12 +641,12 @@ export default function Home() {
                   <div>
                     <strong>{cloud.state.status === 'setup' ? 'Create your shared household' : 'This account is not approved yet'}</strong>
                     <p>{cloud.state.status === 'setup'
-                      ? 'Your current on-device log will become the family’s shared log. You’ll be its owner.'
-                      : 'Ask the household owner to add this exact email. If this is the first account, you can try creating the household.'}</p>
+                      ? 'Your current on-device log will become a new, private family log. You’ll be its owner.'
+                      : 'Ask the household owner to add this exact email, or sign out and use another Google account.'}</p>
                   </div>
-                  <Button type="button" disabled={cloudBusy || !online} onClick={() => void runCloudAction(cloud.createHousehold, 'Family sync is ready.')}>
-                    {cloud.state.status === 'setup' ? 'Create & sync' : 'Try first-time setup'}
-                  </Button>
+                  {cloud.state.status === 'setup' && <Button type="button" disabled={cloudBusy || !online} onClick={() => void runCloudAction(cloud.createHousehold, 'Family sync is ready.')}>
+                    Create & sync
+                  </Button>}
                 </div>
               )}
 
