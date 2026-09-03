@@ -1,6 +1,6 @@
 'use client';
 
-import { SubmitEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, SubmitEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CarFront,
   Check,
@@ -23,6 +23,7 @@ import {
   Square,
   Sun,
   Trash2,
+  Upload,
   UserRound,
   Users,
   WifiOff,
@@ -171,6 +172,149 @@ function downloadFile(name: string, body: string, type: string) {
 function csvCell(value: string | number) {
   const text = String(value);
   return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+function isDateString(value: unknown): value is string {
+  return typeof value === 'string' && Number.isFinite(new Date(value).getTime());
+}
+
+function parseJsonBackup(text: string): AppData {
+  const value = JSON.parse(text) as Partial<AppData>;
+  if (value.version !== 1 || !Array.isArray(value.drivers) || !Array.isArray(value.sessions)) {
+    throw new Error('This JSON file is not a Permit Hours backup.');
+  }
+
+  const drivers = value.drivers.map((driver) => {
+    if (!driver || typeof driver.id !== 'string' || typeof driver.name !== 'string' || !driver.name.trim()
+      || !Number.isFinite(driver.totalGoal) || !Number.isFinite(driver.nightGoal)) {
+      throw new Error('The JSON backup contains an invalid driver.');
+    }
+    return { ...driver, name: driver.name.trim() };
+  });
+  const driverIds = new Set(drivers.map((driver) => driver.id));
+  if (driverIds.size !== drivers.length) throw new Error('The JSON backup contains duplicate driver IDs.');
+
+  const sessions = value.sessions.map((session) => {
+    if (!session || typeof session.id !== 'string' || !driverIds.has(session.driverId)
+      || !isDateString(session.start) || !isDateString(session.end)
+      || new Date(session.end) <= new Date(session.start)
+      || !['day', 'night'].includes(session.period)
+      || !weatherOptions.includes(session.weather)
+      || typeof session.notes !== 'string') {
+      throw new Error('The JSON backup contains an invalid drive entry.');
+    }
+    return session;
+  });
+
+  let active: ActiveDrive | null = null;
+  if (value.active) {
+    if (!driverIds.has(value.active.driverId) || !isDateString(value.active.start)
+      || !['day', 'night'].includes(value.active.period) || !weatherOptions.includes(value.active.weather)) {
+      throw new Error('The JSON backup contains an invalid active drive.');
+    }
+    active = value.active;
+  }
+
+  return {
+    version: 1,
+    drivers,
+    sessions,
+    active,
+    selectedId: typeof value.selectedId === 'string' && driverIds.has(value.selectedId) ? value.selectedId : drivers[0]?.id ?? null,
+  };
+}
+
+function parseCsv(text: string) {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let quoted = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (character === '"') {
+      if (quoted && text[index + 1] === '"') {
+        field += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (character === ',' && !quoted) {
+      row.push(field);
+      field = '';
+    } else if ((character === '\n' || character === '\r') && !quoted) {
+      if (character === '\r' && text[index + 1] === '\n') index += 1;
+      row.push(field);
+      if (row.some((cell) => cell.length > 0)) rows.push(row);
+      row = [];
+      field = '';
+    } else {
+      field += character;
+    }
+  }
+  if (quoted) throw new Error('The CSV file has an unfinished quoted value.');
+  row.push(field);
+  if (row.some((cell) => cell.length > 0)) rows.push(row);
+  return rows;
+}
+
+function importCsvBackup(text: string, current: AppData) {
+  const rows = parseCsv(text);
+  if (rows.length < 2) throw new Error('The CSV file does not contain any drive entries.');
+  const headers = rows[0].map((header, index) => (index === 0 ? header.replace(/^\uFEFF/, '') : header).trim().toLowerCase());
+  const requiredHeaders = ['driver', 'start', 'end', 'day_or_night', 'weather', 'notes'];
+  if (requiredHeaders.some((header) => !headers.includes(header))) throw new Error('This CSV file is not a Permit Hours export.');
+  const column = (name: string) => headers.indexOf(name);
+  const drivers = [...current.drivers];
+  const sessions = [...current.sessions];
+  const driversByName = new Map(drivers.map((driver) => [driver.name.trim().toLowerCase(), driver]));
+  const signatures = new Set(sessions.map((session) => `${session.driverId}\u0000${session.start}\u0000${session.end}\u0000${session.period}\u0000${session.weather}\u0000${session.notes}`));
+  let imported = 0;
+  let duplicates = 0;
+
+  rows.slice(1).forEach((cells, rowIndex) => {
+    const driverName = (cells[column('driver')] ?? '').trim();
+    const startValue = (cells[column('start')] ?? '').trim();
+    const endValue = (cells[column('end')] ?? '').trim();
+    const periodValue = (cells[column('day_or_night')] ?? '').trim().toLowerCase();
+    const weatherValue = (cells[column('weather')] ?? '').trim();
+    const notes = cells[column('notes')] ?? '';
+    if (!driverName || !isDateString(startValue) || !isDateString(endValue)
+      || new Date(endValue) <= new Date(startValue)
+      || !['day', 'night'].includes(periodValue) || !weatherOptions.includes(weatherValue as Weather)) {
+      throw new Error(`CSV row ${rowIndex + 2} contains an invalid drive entry.`);
+    }
+
+    const driverKey = driverName.toLowerCase();
+    let driver = driversByName.get(driverKey);
+    if (!driver) {
+      driver = { id: id(), name: driverName, totalGoal: 50, nightGoal: 10 };
+      drivers.push(driver);
+      driversByName.set(driverKey, driver);
+    }
+    const session = {
+      id: id(),
+      driverId: driver.id,
+      start: new Date(startValue).toISOString(),
+      end: new Date(endValue).toISOString(),
+      period: periodValue as Period,
+      weather: weatherValue as Weather,
+      notes,
+    } satisfies DriveSession;
+    const signature = `${session.driverId}\u0000${session.start}\u0000${session.end}\u0000${session.period}\u0000${session.weather}\u0000${session.notes}`;
+    if (signatures.has(signature)) {
+      duplicates += 1;
+      return;
+    }
+    signatures.add(signature);
+    sessions.push(session);
+    imported += 1;
+  });
+
+  return {
+    data: { ...current, drivers, sessions, selectedId: current.selectedId ?? drivers[0]?.id ?? null },
+    imported,
+    duplicates,
+  };
 }
 
 export default function Home() {
@@ -455,6 +599,35 @@ export default function Home() {
     downloadFile(`permit-hours-${dateInputValue(new Date())}.csv`, csv, 'text/csv;charset=utf-8');
   }
 
+  async function importBackup(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (readOnly) return setNotice('This account has view-only access.');
+    if (file.size > 5 * 1024 * 1024) return setNotice('That backup is too large to import.');
+
+    try {
+      const text = await file.text();
+      const isJson = file.name.toLowerCase().endsWith('.json') || file.type.includes('json');
+      if (isJson) {
+        const imported = parseJsonBackup(text);
+        const hasCurrentLog = data.drivers.length > 0 || data.sessions.length > 0 || data.active;
+        if (hasCurrentLog && !confirm('Restore this JSON backup? It will replace the current log on this device and in family sync.')) return;
+        setData(imported);
+        setNotice(`Backup restored — ${imported.sessions.length} drive${imported.sessions.length === 1 ? '' : 's'}.`);
+        return;
+      }
+
+      const result = importCsvBackup(text, data);
+      setData(result.data);
+      const duplicateNote = result.duplicates ? ` ${result.duplicates} duplicate${result.duplicates === 1 ? '' : 's'} skipped.` : '';
+      setNotice(`${result.imported} drive${result.imported === 1 ? '' : 's'} imported.${duplicateNote}`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'That backup could not be imported.');
+    }
+  }
+
   async function runCloudAction(action: () => Promise<void>, success?: string) {
     setCloudBusy(true);
     try {
@@ -512,10 +685,16 @@ export default function Home() {
           <span>Permit Hours</span>
         </a>
         <div className="top-actions">
-          {data.drivers.length > 0 && (
-            <div className="export-actions" aria-label="Export data">
-              <button type="button" onClick={exportJson} title="Export JSON"><FileJson size={16} /> <span>JSON</span></button>
-              <button type="button" onClick={exportCsv} title="Export CSV"><FileSpreadsheet size={16} /> <span>CSV</span></button>
+          {(!readOnly || data.drivers.length > 0) && (
+            <div className="export-actions" aria-label="Import and export data">
+              {!readOnly && <label className="import-action" title="Import JSON or CSV">
+                <Upload size={16} /> <span>Import</span>
+                <input className="file-picker" type="file" accept=".json,.csv,application/json,text/csv" onChange={(event) => void importBackup(event)} />
+              </label>}
+              {data.drivers.length > 0 && <>
+                <button type="button" onClick={exportJson} title="Export JSON"><FileJson size={16} /> <span>JSON</span></button>
+                <button type="button" onClick={exportCsv} title="Export CSV"><FileSpreadsheet size={16} /> <span>CSV</span></button>
+              </>}
             </div>
           )}
           <button

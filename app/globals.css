@@ -83,8 +83,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .sync-pill.offline, .sync-pill.error, .sync-pill.unapproved { color: #765a37; background: #fbf3e7; border-color: #ead8bf; }
 .sync-pill.saving svg, .sync-pill.connecting svg { animation: pulse 1.3s ease-in-out infinite; }
 .export-actions { display: flex; align-items: center; gap: 5px; }
-.export-actions button { display: flex; align-items: center; gap: 5px; height: 32px; padding: 0 9px; color: var(--quiet); background: transparent; border: 1px solid transparent; border-radius: 9px; cursor: pointer; font-size: 11px; font-weight: 700; }
-.export-actions button:hover { background: var(--surface); border-color: var(--line); }
+.export-actions button, .import-action { display: flex; align-items: center; gap: 5px; height: 32px; padding: 0 9px; color: var(--quiet); background: transparent; border: 1px solid transparent; border-radius: 9px; cursor: pointer; font-size: 11px; font-weight: 700; }
+.export-actions button:hover, .import-action:hover, .import-action:focus-within { color: var(--green-dark); background: var(--surface); border-color: var(--line); }
+.import-action { position: relative; }
+.file-picker { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .driver-bar { max-width: 1180px; margin: 0 auto; min-height: 86px; display: flex; align-items: center; gap: 9px; overflow-x: auto; scrollbar-width: none; }
 .driver-bar::-webkit-scrollbar { display: none; }
 .driver-chip, .add-driver { flex: 0 0 auto; border: 0; background: transparent; cursor: pointer; }
@@ -254,7 +256,8 @@ h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp
   .sync-pill { padding: 8px; }
   .sync-pill span { display: none; }
   .export-actions button span { display: none; }
-  .export-actions button { padding: 0 6px; }
+  .export-actions button, .import-action { padding: 0 6px; }
+  .import-action > span { display: none; }
   .driver-bar { min-height: 72px; }
   h1 { font-size: 34px; }
   .start-button { width: 188px; height: 188px; }
