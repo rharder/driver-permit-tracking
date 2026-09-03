@@ -1,5 +1,7 @@
 # Initial Features to Get Things Started
 
+App Name: Permit Hours 
+
 - Easy start/stop buttons for beginning and end of drive
 - Work offline for when there's no good signal
 - Be able to edit entries to correct errors
