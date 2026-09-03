@@ -11,4 +11,5 @@
 - Export data to json and csv
 - Also be able to sync to cloud, maybe firebase, so that mom and dad can both track
 - If syncing with something like firebase, kid should be able to see a read-only view
+- Able to support multiple kids of driving age at once
 
