@@ -1,0 +1,97 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Existing Kids Money Tracker rules. Keep this block when deploying the
+    // shared Firebase project so that app continues to work unchanged.
+    match /families/{familyId} {
+      function isOwner() {
+        return signedIn() && resource.data.ownerUid == request.auth.uid;
+      }
+
+      function isApprovedViewer() {
+        return signedIn()
+          && request.auth.token.email != null
+          && resource.data.memberEmails is list
+          && request.auth.token.email in resource.data.memberEmails;
+      }
+
+      allow get: if isOwner() || isApprovedViewer();
+      allow list, create, delete: if false;
+      allow update: if isOwner()
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.ownerEmail == resource.data.ownerEmail
+        && request.resource.data.schemaVersion == 3
+        && request.resource.data.kids is list
+        && request.resource.data.transactions is list
+        && request.resource.data.memberEmails is list
+        && request.resource.data.memberEmails.size() <= 30;
+    }
+
+    match /permitHourFamilies/{familyId} {
+      function email() {
+        return request.auth.token.email;
+      }
+
+      function isOwner() {
+        return signedIn() && resource.data.ownerUid == request.auth.uid;
+      }
+
+      function isSupervisor() {
+        return signedIn()
+          && email() != null
+          && resource.data.supervisorEmails is list
+          && email() in resource.data.supervisorEmails;
+      }
+
+      function isViewer() {
+        return signedIn()
+          && email() != null
+          && resource.data.viewerEmails is list
+          && email() in resource.data.viewerEmails;
+      }
+
+      function validPermitHoursDocument() {
+        return request.resource.data.schemaVersion == 1
+          && request.resource.data.ownerUid is string
+          && request.resource.data.ownerEmail is string
+          && request.resource.data.supervisorEmails is list
+          && request.resource.data.viewerEmails is list
+          && request.resource.data.supervisorEmails.size() <= 30
+          && request.resource.data.viewerEmails.size() <= 30
+          && request.resource.data.payload is map
+          && request.resource.data.payload.version == 1
+          && request.resource.data.payload.drivers is list
+          && request.resource.data.payload.sessions is list;
+      }
+
+      // Signed-in users may learn that the fixed household document does not
+      // exist, but only approved family members can read it once it does.
+      allow get: if (signedIn() && !exists(/databases/$(database)/documents/permitHourFamilies/$(familyId)))
+        || isOwner() || isSupervisor() || isViewer();
+      allow list, delete: if false;
+      allow create: if signedIn()
+        && familyId == 'main'
+        && email() != null
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerEmail == email()
+        && request.resource.data.supervisorEmails.size() == 0
+        && request.resource.data.viewerEmails.size() == 0
+        && validPermitHoursDocument();
+      allow update: if validPermitHoursDocument()
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.ownerEmail == resource.data.ownerEmail
+        && (
+          isOwner()
+          || (
+            isSupervisor()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['payload', 'updatedAt'])
+          )
+        );
+    }
+  }
+}

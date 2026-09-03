@@ -1,23 +1,30 @@
 'use client';
 
-import { SubmitEvent, useEffect, useMemo, useState } from 'react';
+import { SubmitEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CarFront,
   Check,
   Cloud,
   CloudRain,
+  CloudUpload,
   Download,
+  Eye,
   FileJson,
   FileSpreadsheet,
   History,
+  LogOut,
   Moon,
   Pencil,
   Plus,
   Settings2,
+  ShieldCheck,
   Snowflake,
   Square,
   Sun,
   Trash2,
+  UserRound,
+  Users,
+  WifiOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,6 +36,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { useFirebaseSync, type FamilyRole } from '@/lib/firebase-sync';
 
 type Period = 'day' | 'night';
 type Weather = 'Clear' | 'Cloudy' | 'Rain' | 'Snow' | 'Other';
@@ -147,6 +155,10 @@ export default function Home() {
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
   const [sessionDraft, setSessionDraft] = useState<SessionDraft | null>(null);
   const [notice, setNotice] = useState('');
+  const [accountDialogOpen, setAccountDialogOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<Exclude<FamilyRole, 'owner'>>('supervisor');
+  const [cloudBusy, setCloudBusy] = useState(false);
 
   useEffect(() => {
     let initialData = EMPTY_DATA;
@@ -201,6 +213,18 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, [notice]);
 
+  const shareableData = useMemo(() => ({ ...data, selectedId: null }), [data]);
+  const acceptCloudData = useCallback((remote: AppData) => {
+    setData((current) => ({
+      ...remote,
+      selectedId: current.selectedId && remote.drivers.some((driver) => driver.id === current.selectedId)
+        ? current.selectedId
+        : remote.drivers[0]?.id ?? null,
+    }));
+  }, []);
+  const cloud = useFirebaseSync({ data: shareableData, localReady: ready, onRemoteData: acceptCloudData });
+  const readOnly = cloud.state.role === 'viewer' || cloud.state.status === 'unapproved';
+
   const selected = data.drivers.find((driver) => driver.id === data.selectedId) ?? data.drivers[0] ?? null;
   const activeDriver = data.drivers.find((driver) => driver.id === data.active?.driverId) ?? null;
   const driverSessions = useMemo(
@@ -215,6 +239,7 @@ export default function Home() {
 
   function addFirstDriver(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (readOnly) return setNotice('This account has view-only access.');
     const name = newName.trim();
     if (!name) return;
     const driver: Driver = { id: id(), name, totalGoal: 50, nightGoal: 10 };
@@ -224,17 +249,20 @@ export default function Home() {
   }
 
   function openAddDriver() {
+    if (readOnly) return setNotice('This account has view-only access.');
     setDriverDraft({ id: '', name: '', totalGoal: 50, nightGoal: 10 });
     setDriverDialogOpen(true);
   }
 
   function openEditDriver(driver: Driver) {
+    if (readOnly) return setNotice('This account has view-only access.');
     setDriverDraft({ ...driver });
     setDriverDialogOpen(true);
   }
 
   function saveDriver(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (readOnly) return setNotice('This account has view-only access.');
     const name = driverDraft.name.trim();
     if (!name) return;
     if (driverDraft.id) {
@@ -249,6 +277,7 @@ export default function Home() {
   }
 
   function removeDriver() {
+    if (readOnly) return setNotice('This account has view-only access.');
     if (!driverDraft.id || !confirm(`Delete ${driverDraft.name} and all of their driving entries?`)) return;
     const remaining = data.drivers.filter((driver) => driver.id !== driverDraft.id);
     setData({
@@ -263,6 +292,7 @@ export default function Home() {
   }
 
   function startDrive() {
+    if (readOnly) return setNotice('This account has view-only access.');
     if (!selected || data.active) return;
     const active = { driverId: selected.id, start: new Date().toISOString(), period, weather };
     setNow(Date.now());
@@ -270,6 +300,7 @@ export default function Home() {
   }
 
   function stopDrive() {
+    if (readOnly) return setNotice('This account has view-only access.');
     if (!data.active) return;
     const session: DriveSession = {
       id: id(),
@@ -285,6 +316,7 @@ export default function Home() {
   }
 
   function openNewSession() {
+    if (readOnly) return setNotice('This account has view-only access.');
     const end = new Date();
     const start = new Date(end.getTime() - 60 * 60 * 1000);
     setSessionDraft({
@@ -300,6 +332,7 @@ export default function Home() {
   }
 
   function openEditSession(session: DriveSession) {
+    if (readOnly) return setNotice('This account has view-only access.');
     const start = new Date(session.start);
     const end = new Date(session.end);
     setSessionDraft({
@@ -316,6 +349,7 @@ export default function Home() {
 
   function saveSession(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (readOnly) return setNotice('This account has view-only access.');
     if (!selected || !sessionDraft) return;
     const start = new Date(`${sessionDraft.date}T${sessionDraft.startTime}`);
     const end = new Date(`${sessionDraft.date}T${sessionDraft.endTime}`);
@@ -340,6 +374,7 @@ export default function Home() {
   }
 
   function removeSession(session: DriveSession) {
+    if (readOnly) return setNotice('This account has view-only access.');
     if (!confirm('Delete this drive from the log?')) return;
     setData({ ...data, sessions: data.sessions.filter((item) => item.id !== session.id) });
     setNotice('Drive deleted.');
@@ -359,6 +394,51 @@ export default function Home() {
     downloadFile(`permit-hours-${dateInputValue(new Date())}.csv`, csv, 'text/csv;charset=utf-8');
   }
 
+  async function runCloudAction(action: () => Promise<void>, success?: string) {
+    setCloudBusy(true);
+    try {
+      await action();
+      if (success) setNotice(success);
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Cloud action failed. Please try again.';
+      setNotice(message.includes('permission') ? 'That Google account does not have access yet.' : message);
+      return false;
+    } finally {
+      setCloudBusy(false);
+    }
+  }
+
+  function addHouseholdMember(event: SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const email = inviteEmail.trim().toLowerCase();
+    if (!email) return;
+    const members = {
+      supervisorEmails: inviteRole === 'supervisor'
+        ? [...cloud.state.members.supervisorEmails, email]
+        : cloud.state.members.supervisorEmails.filter((item) => item !== email),
+      viewerEmails: inviteRole === 'viewer'
+        ? [...cloud.state.members.viewerEmails, email]
+        : cloud.state.members.viewerEmails.filter((item) => item !== email),
+    };
+    void runCloudAction(() => cloud.updateMembers(members), `${email} can now sign in.`).then((saved) => {
+      if (saved) setInviteEmail('');
+    });
+  }
+
+  function removeHouseholdMember(email: string) {
+    void runCloudAction(() => cloud.updateMembers({
+      supervisorEmails: cloud.state.members.supervisorEmails.filter((item) => item !== email),
+      viewerEmails: cloud.state.members.viewerEmails.filter((item) => item !== email),
+    }), 'Access removed.');
+  }
+
+  const syncIcon = !online || cloud.state.status === 'offline'
+    ? <WifiOff size={15} />
+    : cloud.state.user
+      ? <Cloud size={15} />
+      : <CloudUpload size={15} />;
+
   if (!ready) {
     return <main className="loading-screen"><span className="brand-mark"><CarFront size={20} /></span><span>Loading Permit Hours…</span></main>;
   }
@@ -377,20 +457,31 @@ export default function Home() {
               <button type="button" onClick={exportCsv} title="Export CSV"><FileSpreadsheet size={16} /> <span>CSV</span></button>
             </div>
           )}
-          <span className={`offline-pill ${online ? '' : 'offline'}`}><span /> {online ? 'Offline ready' : 'Working offline'}</span>
+          <button
+            className={`sync-pill ${cloud.state.status} ${online ? '' : 'offline'}`}
+            type="button"
+            onClick={() => setAccountDialogOpen(true)}
+            aria-label="Cloud sync and household access"
+          >
+            {syncIcon}<span>{cloud.state.user ? cloud.state.message : online ? 'Sync with Google' : 'Working offline'}</span>
+          </button>
         </div>
       </header>
 
       {data.drivers.length === 0 ? (
         <section className="welcome-panel">
           <div className="welcome-art"><CarFront size={36} /></div>
-          <p className="eyebrow">Private by design</p>
+          <p className="eyebrow">Offline first</p>
           <h1>Start a driving log.</h1>
-          <p>Add your first teen driver. Their log stays on this device, works without a signal, and never needs an account.</p>
-          <form onSubmit={addFirstDriver} className="welcome-form">
-            <label htmlFor="first-driver">Driver’s first name</label>
-            <div><Input id="first-driver" value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="e.g. Maya" /><Button type="submit" disabled={!newName.trim()}><Plus /> Add driver</Button></div>
-          </form>
+          <p>Your log is saved on this device, works without a signal, and can sync securely across your family’s devices.</p>
+          {readOnly ? (
+            <div className="readonly-empty"><Eye size={21} /><span>No drivers have been added to this shared log yet.</span></div>
+          ) : (
+            <form onSubmit={addFirstDriver} className="welcome-form">
+              <label htmlFor="first-driver">Driver’s first name</label>
+              <div><Input id="first-driver" value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="e.g. Maya" /><Button type="submit" disabled={!newName.trim()}><Plus /> Add driver</Button></div>
+            </form>
+          )}
           <div className="default-note"><Check size={16} /> Starts with Colorado’s default goals: 50 hours total, including 10 at night.</div>
         </section>
       ) : (
@@ -408,7 +499,7 @@ export default function Home() {
                 {data.active?.driverId === driver.id && <span className="live-dot" aria-label="drive in progress" />}
               </button>
             ))}
-            <button className="add-driver" type="button" onClick={openAddDriver}><Plus size={17} /> Add driver</button>
+            {!readOnly && <button className="add-driver" type="button" onClick={openAddDriver}><Plus size={17} /> Add driver</button>}
           </section>
 
           <div className="dashboard">
@@ -421,12 +512,16 @@ export default function Home() {
                     <p className="lede">Started at {new Date(data.active.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · {data.active.weather}</p>
                   </div>
                   <div className="timer" aria-live="off">{formatDuration(liveDuration, true)}</div>
-                  <button className="stop-button" type="button" onClick={stopDrive}>
-                    <span><Square size={20} fill="currentColor" /></span>
-                    <strong>Stop & save</strong>
-                    <small>End this drive</small>
-                  </button>
-                  <p className="save-note">The timer keeps running if you close the app.</p>
+                  {readOnly ? (
+                    <div className="viewer-badge"><Eye size={16} /> Live view only</div>
+                  ) : (
+                    <button className="stop-button" type="button" onClick={stopDrive}>
+                      <span><Square size={20} fill="currentColor" /></span>
+                      <strong>Stop & save</strong>
+                      <small>End this drive</small>
+                    </button>
+                  )}
+                  <p className="save-note">{readOnly ? 'A supervising driver can stop and save this drive.' : 'The timer keeps running if you close the app.'}</p>
                 </>
               ) : data.active && activeDriver ? (
                 <div className="other-active">
@@ -435,6 +530,13 @@ export default function Home() {
                   <h1>{activeDriver.name} is on the road.</h1>
                   <p>The app tracks one active drive at a time on this device.</p>
                   <Button type="button" onClick={() => setData({ ...data, selectedId: activeDriver.id })}>View active drive</Button>
+                </div>
+              ) : readOnly ? (
+                <div className="viewer-panel">
+                  <span className="other-active-icon"><Eye size={28} /></span>
+                  <p className="eyebrow">View-only access</p>
+                  <h1>{selected?.name}’s progress is up to date.</h1>
+                  <p>You can review hours and driving history. A supervising adult can start drives or change the log.</p>
                 </div>
               ) : (
                 <>
@@ -472,7 +574,7 @@ export default function Home() {
                   <p className="eyebrow">Driving goals</p>
                   <h2>{totalPercent}% complete</h2>
                 </div>
-                {selected && <button type="button" onClick={() => openEditDriver(selected)} aria-label="Edit driver and goals"><Settings2 size={19} /></button>}
+                {selected && !readOnly && <button type="button" onClick={() => openEditDriver(selected)} aria-label="Edit driver and goals"><Settings2 size={19} /></button>}
               </div>
               <GoalCard icon={<CarFront size={20} />} label="Total time" value={totalTime} goal={selected?.totalGoal ?? 50} progress={totalPercent} />
               <GoalCard icon={<Moon size={20} />} label="Night time" value={nightTime} goal={selected?.nightGoal ?? 10} progress={nightPercent} night />
@@ -480,14 +582,14 @@ export default function Home() {
                 <Sun size={19} />
                 <p><strong>{totalPercent >= 100 ? 'Goal reached!' : 'Keep it rolling.'}</strong> {totalPercent >= 100 ? 'You’ve completed the total-time goal.' : `${formatDuration(Math.max(0, (selected?.totalGoal ?? 50) * 3_600_000 - totalTime))} left to reach the total goal.`}</p>
               </div>
-              <div className="privacy-note"><Download size={16} /><p><strong>Stored on this device.</strong> Export JSON for a complete backup or CSV for a spreadsheet.</p></div>
+              <div className="privacy-note">{cloud.state.user ? <Cloud size={16} /> : <Download size={16} />}<p><strong>{cloud.state.user ? 'Offline-safe cloud sync.' : 'Stored on this device.'}</strong> {cloud.state.user ? 'Changes save locally first and sync when a connection is available.' : 'Sign in to sync with your family, or export a backup.'}</p></div>
             </aside>
           </div>
 
           <section className="history-panel">
             <div className="history-heading">
               <div><p className="eyebrow">Drive log</p><h2>Recent drives</h2></div>
-              <Button variant="outline" type="button" onClick={openNewSession}><Plus /> Add drive</Button>
+              {!readOnly && <Button variant="outline" type="button" onClick={openNewSession}><Plus /> Add drive</Button>}
             </div>
             {driverSessions.length === 0 ? (
               <div className="empty-history"><History size={24} /><div><strong>No drives yet</strong><p>Start the timer or add a past drive manually.</p></div></div>
@@ -499,7 +601,7 @@ export default function Home() {
                     <div className="session-date"><strong>{new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(session.start))}</strong><span>{new Date(session.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}–{new Date(session.end).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span></div>
                     <div className="session-weather">{weatherIcon(session.weather)}<span>{session.weather}</span></div>
                     <strong className="session-duration">{formatDuration(durationMs(session))}</strong>
-                    <div className="session-actions"><button type="button" onClick={() => openEditSession(session)} aria-label="Edit drive"><Pencil size={16} /></button><button type="button" onClick={() => removeSession(session)} aria-label="Delete drive"><Trash2 size={16} /></button></div>
+                    {!readOnly && <div className="session-actions"><button type="button" onClick={() => openEditSession(session)} aria-label="Edit drive"><Pencil size={16} /></button><button type="button" onClick={() => removeSession(session)} aria-label="Delete drive"><Trash2 size={16} /></button></div>}
                     {session.notes && <p className="session-notes">{session.notes}</p>}
                   </article>
                 ))}
@@ -510,6 +612,83 @@ export default function Home() {
       )}
 
       {notice && <output className="toast"><Check size={17} /> {notice}</output>}
+
+      <Dialog open={accountDialogOpen} onOpenChange={setAccountDialogOpen}>
+        <DialogContent className="permit-dialog account-dialog sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Family sync</DialogTitle>
+            <DialogDescription>Keep everyone’s copy of the driving log current—even when a device temporarily loses its connection.</DialogDescription>
+          </DialogHeader>
+
+          {!cloud.state.user ? (
+            <div className="account-intro">
+              <span className="account-hero"><CloudUpload size={28} /></span>
+              <div><strong>Sync with your Google account</strong><p>Your local log stays available offline. When connected, Firebase syncs it to approved family members.</p></div>
+              <Button type="button" disabled={cloudBusy || !online} onClick={() => void runCloudAction(cloud.signInWithGoogle)}><UserRound /> Continue with Google</Button>
+              {!online && <small>Connect to the internet once to sign in. Your driving log remains available offline.</small>}
+            </div>
+          ) : (
+            <div className="account-content">
+              <div className="account-profile">
+                <span>{(cloud.state.user.displayName ?? cloud.state.user.email ?? '?').charAt(0).toUpperCase()}</span>
+                <div><strong>{cloud.state.user.displayName ?? 'Google account'}</strong><small>{cloud.state.user.email}</small></div>
+                {cloud.state.role && <em>{cloud.state.role === 'owner' ? 'Owner' : cloud.state.role === 'supervisor' ? 'Supervisor' : 'View only'}</em>}
+              </div>
+
+              {(cloud.state.status === 'setup' || cloud.state.status === 'unapproved') && (
+                <div className={`access-message ${cloud.state.status}`}>
+                  <ShieldCheck size={21} />
+                  <div>
+                    <strong>{cloud.state.status === 'setup' ? 'Create your shared household' : 'This account is not approved yet'}</strong>
+                    <p>{cloud.state.status === 'setup'
+                      ? 'Your current on-device log will become the family’s shared log. You’ll be its owner.'
+                      : 'Ask the household owner to add this exact email. If this is the first account, you can try creating the household.'}</p>
+                  </div>
+                  <Button type="button" disabled={cloudBusy || !online} onClick={() => void runCloudAction(cloud.createHousehold, 'Family sync is ready.')}>
+                    {cloud.state.status === 'setup' ? 'Create & sync' : 'Try first-time setup'}
+                  </Button>
+                </div>
+              )}
+
+              {cloud.state.cloudReady && (
+                <div className="sync-summary">
+                  {cloud.state.status === 'offline' ? <WifiOff size={19} /> : <Cloud size={19} />}
+                  <div><strong>{cloud.state.message}</strong><p>{cloud.state.status === 'offline' ? 'Changes stay on this device and will upload automatically after reconnecting.' : 'This device and your family’s other signed-in devices share one driving log.'}</p></div>
+                </div>
+              )}
+
+              {cloud.state.role === 'owner' && cloud.state.cloudReady && (
+                <section className="household-access">
+                  <div className="access-heading"><Users size={19} /><div><strong>Household access</strong><p>Add exact Google-account email addresses.</p></div></div>
+                  <form className="invite-form" onSubmit={addHouseholdMember}>
+                    <Input type="email" aria-label="Family member email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="family@example.com" required />
+                    <select aria-label="Access role" value={inviteRole} onChange={(event) => setInviteRole(event.target.value as Exclude<FamilyRole, 'owner'>)}>
+                      <option value="supervisor">Supervising adult</option>
+                      <option value="viewer">View only</option>
+                    </select>
+                    <Button type="submit" disabled={cloudBusy || !inviteEmail.trim()}>Add</Button>
+                  </form>
+                  <div className="member-list">
+                    {cloud.state.members.supervisorEmails.map((email) => <MemberRow key={email} email={email} accessLabel="Supervising adult" disabled={cloudBusy} onRemove={() => removeHouseholdMember(email)} />)}
+                    {cloud.state.members.viewerEmails.map((email) => <MemberRow key={email} email={email} accessLabel="View only" disabled={cloudBusy} onRemove={() => removeHouseholdMember(email)} />)}
+                    {cloud.state.members.supervisorEmails.length + cloud.state.members.viewerEmails.length === 0 && <p className="no-members">No additional family members yet.</p>}
+                  </div>
+                  <p className="role-help"><ShieldCheck size={15} /><span><strong>Supervising adults</strong> can start, stop, and edit drives. <strong>View-only members</strong> can follow progress without changing the log.</span></p>
+                </section>
+              )}
+
+              {cloud.state.role && cloud.state.role !== 'owner' && cloud.state.cloudReady && (
+                <div className="role-explainer">
+                  {cloud.state.role === 'viewer' ? <Eye size={19} /> : <ShieldCheck size={19} />}
+                  <p>{cloud.state.role === 'viewer' ? 'You can see drivers, goals, and drive history, but you cannot change the shared log.' : 'You can start, stop, and edit drives. Only the household owner can manage access.'}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {cloud.state.user && <DialogFooter><Button variant="outline" type="button" disabled={cloudBusy} onClick={() => void runCloudAction(cloud.signOutUser)}><LogOut /> Sign out</Button></DialogFooter>}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={driverDialogOpen} onOpenChange={setDriverDialogOpen}>
         <DialogContent className="permit-dialog sm:max-w-md">
@@ -548,6 +727,15 @@ function GoalCard({ icon, label, value, goal, progress, night = false }: { icon:
       <div className="goal-copy"><span>{label}</span><strong>{formatDuration(value)} <small>of {goal}h</small></strong></div>
       <span className="goal-percent">{progress}%</span>
       <div className="meter" aria-label={`${progress}% of ${label.toLowerCase()} goal`}><span style={{ width: `${progress}%` }} /></div>
+    </div>
+  );
+}
+
+function MemberRow({ email, accessLabel, disabled, onRemove }: { email: string; accessLabel: string; disabled: boolean; onRemove: () => void }) {
+  return (
+    <div className="member-row">
+      <span><strong>{email}</strong><small>{accessLabel}</small></span>
+      <button type="button" disabled={disabled} onClick={onRemove} aria-label={`Remove ${email}`}><Trash2 size={15} /></button>
     </div>
   );
 }

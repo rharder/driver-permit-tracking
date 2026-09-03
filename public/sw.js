@@ -1,4 +1,4 @@
-const CACHE_NAME = 'permit-hours-v1';
+const CACHE_NAME = 'permit-hours-v2';
 const APP_SHELL = ['./', './manifest.webmanifest', './favicon.svg', './icon.svg'];
 
 self.addEventListener('install', (event) => {
