@@ -4,6 +4,7 @@ import { SubmitEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CarFront,
   Check,
+  Clock3,
   Cloud,
   CloudRain,
   CloudUpload,
@@ -78,6 +79,8 @@ type SessionDraft = {
   date: string;
   startTime: string;
   endTime: string;
+  durationMinutes: string;
+  timeSource: 'duration' | 'end';
   period: Period;
   weather: Weather;
   notes: string;
@@ -114,6 +117,34 @@ function dateInputValue(date: Date) {
 
 function timeInputValue(date: Date) {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function timeToMinutes(value: string) {
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function durationBetweenTimes(startTime: string, endTime: string) {
+  const start = timeToMinutes(startTime);
+  const end = timeToMinutes(endTime);
+  if (start === null || end === null) return '';
+  const minutes = end - start <= 0 ? end - start + 24 * 60 : end - start;
+  return String(minutes);
+}
+
+function endTimeFromDuration(startTime: string, durationMinutes: string) {
+  const start = timeToMinutes(startTime);
+  const duration = Number(durationMinutes);
+  if (start === null || !Number.isFinite(duration) || duration <= 0 || duration > 24 * 60) return '';
+  const end = (start + Math.round(duration)) % (24 * 60);
+  return `${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`;
+}
+
+function endsNextDay(startTime: string, endTime: string) {
+  const start = timeToMinutes(startTime);
+  const end = timeToMinutes(endTime);
+  return start !== null && end !== null && end <= start;
 }
 
 function weatherIcon(weather: Weather, size = 17) {
@@ -324,6 +355,8 @@ export default function Home() {
       date: dateInputValue(start),
       startTime: timeInputValue(start),
       endTime: timeInputValue(end),
+      durationMinutes: '60',
+      timeSource: 'duration',
       period,
       weather,
       notes: '',
@@ -340,11 +373,39 @@ export default function Home() {
       date: dateInputValue(start),
       startTime: timeInputValue(start),
       endTime: timeInputValue(end),
+      durationMinutes: String(Math.max(1, Math.round(durationMs(session) / 60_000))),
+      timeSource: 'end',
       period: session.period,
       weather: session.weather,
       notes: session.notes,
     });
     setSessionDialogOpen(true);
+  }
+
+  function updateSessionStartTime(startTime: string) {
+    if (!sessionDraft) return;
+    if (sessionDraft.timeSource === 'end') {
+      setSessionDraft({ ...sessionDraft, startTime, durationMinutes: durationBetweenTimes(startTime, sessionDraft.endTime) });
+      return;
+    }
+    const endTime = endTimeFromDuration(startTime, sessionDraft.durationMinutes);
+    setSessionDraft({ ...sessionDraft, startTime, endTime: endTime || sessionDraft.endTime });
+  }
+
+  function updateSessionDuration(durationMinutes: string) {
+    if (!sessionDraft) return;
+    const endTime = endTimeFromDuration(sessionDraft.startTime, durationMinutes);
+    setSessionDraft({ ...sessionDraft, durationMinutes, timeSource: 'duration', endTime: endTime || sessionDraft.endTime });
+  }
+
+  function updateSessionEndTime(endTime: string) {
+    if (!sessionDraft) return;
+    setSessionDraft({
+      ...sessionDraft,
+      endTime,
+      durationMinutes: durationBetweenTimes(sessionDraft.startTime, endTime),
+      timeSource: 'end',
+    });
   }
 
   function saveSession(event: SubmitEvent<HTMLFormElement>) {
@@ -706,10 +767,15 @@ export default function Home() {
 
       <Dialog open={sessionDialogOpen} onOpenChange={setSessionDialogOpen}>
         <DialogContent className="permit-dialog sm:max-w-lg">
-          <DialogHeader><DialogTitle>{sessionDraft?.id ? 'Edit drive' : 'Add a drive'}</DialogTitle><DialogDescription>Correct the time, conditions, or notes for this entry.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>{sessionDraft?.id ? 'Edit drive' : 'Add a drive'}</DialogTitle><DialogDescription>Enter an end time or a duration—the other value updates automatically.</DialogDescription></DialogHeader>
           {sessionDraft && <form id="session-form" onSubmit={saveSession} className="dialog-form">
             <label htmlFor="drive-date">Date<Input id="drive-date" type="date" value={sessionDraft.date} onChange={(event) => setSessionDraft({ ...sessionDraft, date: event.target.value })} required /></label>
-            <div className="form-grid"><label htmlFor="drive-start">Started<Input id="drive-start" type="time" value={sessionDraft.startTime} onChange={(event) => setSessionDraft({ ...sessionDraft, startTime: event.target.value })} required /></label><label htmlFor="drive-end">Ended<Input id="drive-end" type="time" value={sessionDraft.endTime} onChange={(event) => setSessionDraft({ ...sessionDraft, endTime: event.target.value })} required /></label></div>
+            <div className="time-entry-grid">
+              <label htmlFor="drive-start">Started<Input id="drive-start" type="time" value={sessionDraft.startTime} onChange={(event) => updateSessionStartTime(event.target.value)} required /></label>
+              <label htmlFor="drive-end">Ended<Input id="drive-end" type="time" value={sessionDraft.endTime} onChange={(event) => updateSessionEndTime(event.target.value)} required /></label>
+              <label htmlFor="drive-duration">Duration <span>(minutes)</span><Input id="drive-duration" type="number" inputMode="numeric" min="1" max="1440" step="1" value={sessionDraft.durationMinutes} onChange={(event) => updateSessionDuration(event.target.value)} required /></label>
+            </div>
+            <p className="duration-summary" aria-live="polite"><Clock3 size={15} /><span>Calculated drive time: <strong>{formatDuration(Number(sessionDraft.durationMinutes || 0) * 60_000)}</strong>{endsNextDay(sessionDraft.startTime, sessionDraft.endTime) ? ' · ends the next day' : ''}</span></p>
             <div className="form-grid"><label htmlFor="drive-period">Time of day<select id="drive-period" value={sessionDraft.period} onChange={(event) => setSessionDraft({ ...sessionDraft, period: event.target.value as Period })}><option value="day">Day</option><option value="night">Night</option></select></label><label htmlFor="drive-weather">Weather<select id="drive-weather" value={sessionDraft.weather} onChange={(event) => setSessionDraft({ ...sessionDraft, weather: event.target.value as Weather })}>{weatherOptions.map((option) => <option key={option}>{option}</option>)}</select></label></div>
             <label htmlFor="drive-notes">Notes <span>(optional)</span><textarea id="drive-notes" rows={3} value={sessionDraft.notes} onChange={(event) => setSessionDraft({ ...sessionDraft, notes: event.target.value })} placeholder="Highway practice, parking, rain…" /></label>
           </form>}
