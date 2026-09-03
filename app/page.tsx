@@ -223,7 +223,7 @@ export default function Home() {
     }));
   }, []);
   const cloud = useFirebaseSync({ data: shareableData, localReady: ready, onRemoteData: acceptCloudData });
-  const readOnly = cloud.state.role === 'viewer' || cloud.state.status === 'unapproved';
+  const readOnly = cloud.state.role === 'viewer';
 
   const selected = data.drivers.find((driver) => driver.id === data.selectedId) ?? data.drivers[0] ?? null;
   const activeDriver = data.drivers.find((driver) => driver.id === data.active?.driverId) ?? null;
