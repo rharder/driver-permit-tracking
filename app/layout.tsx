@@ -3,20 +3,20 @@ import './globals.css';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://rharder.github.io/driver-permit-tracking/'),
-  title: 'Permit Miles — Teen driving log',
+  title: 'Permit Hours — Teen driving log',
   description: 'A simple, private, offline driving practice tracker for permit hours.',
   manifest: './manifest.webmanifest',
-  applicationName: 'Permit Miles',
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Permit Miles' },
+  applicationName: 'Permit Hours',
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Permit Hours' },
   openGraph: {
-    title: 'Permit Miles — Teen driving log',
+    title: 'Permit Hours — Teen driving log',
     description: 'Teen driving hours, simply tracked.',
     type: 'website',
-    images: [{ url: './og.png', width: 1200, height: 630, alt: 'Permit Miles — Teen driving hours, simply tracked.' }],
+    images: [{ url: './og.png', width: 1200, height: 630, alt: 'Permit Hours — Teen driving hours, simply tracked.' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Permit Miles — Teen driving log',
+    title: 'Permit Hours — Teen driving log',
     description: 'Teen driving hours, simply tracked.',
     images: ['./og.png'],
   },

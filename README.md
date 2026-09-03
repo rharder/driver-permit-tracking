@@ -1,6 +1,6 @@
-# Permit Miles
+# Permit Hours
 
-Permit Miles is an offline-first teen driving-hours tracker. It supports multiple drivers, one-tap timers, day/night goals, weather conditions, editable entries, and JSON/CSV exports without requiring an account.
+Permit Hours is an offline-first teen driving-hours tracker. It supports multiple drivers, one-tap timers, day/night goals, weather conditions, editable entries, and JSON/CSV exports without requiring an account.
 
 ## Run locally
 

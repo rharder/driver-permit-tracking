@@ -1,4 +1,4 @@
-name: Deploy Permit Miles to GitHub Pages
+name: Deploy Permit Hours to GitHub Pages
 
 on:
   push:

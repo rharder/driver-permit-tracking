@@ -1,6 +1,6 @@
 {
-  "name": "Permit Miles — Teen Driving Log",
-  "short_name": "Permit Miles",
+  "name": "Permit Hours — Teen Driving Log",
+  "short_name": "Permit Hours",
   "description": "A private, offline driving practice tracker for permit hours.",
   "start_url": "./",
   "scope": "./",

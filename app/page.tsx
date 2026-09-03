@@ -346,7 +346,7 @@ export default function Home() {
   }
 
   function exportJson() {
-    downloadFile(`permit-miles-${dateInputValue(new Date())}.json`, JSON.stringify(data, null, 2), 'application/json');
+    downloadFile(`permit-hours-${dateInputValue(new Date())}.json`, JSON.stringify(data, null, 2), 'application/json');
   }
 
   function exportCsv() {
@@ -356,19 +356,19 @@ export default function Home() {
       return [driver?.name ?? 'Unknown', session.start, session.end, Math.round(durationMs(session) / 60_000), session.period, session.weather, session.notes];
     });
     const csv = [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\n');
-    downloadFile(`permit-miles-${dateInputValue(new Date())}.csv`, csv, 'text/csv;charset=utf-8');
+    downloadFile(`permit-hours-${dateInputValue(new Date())}.csv`, csv, 'text/csv;charset=utf-8');
   }
 
   if (!ready) {
-    return <main className="loading-screen"><span className="brand-mark"><CarFront size={20} /></span><span>Loading Permit Miles…</span></main>;
+    return <main className="loading-screen"><span className="brand-mark"><CarFront size={20} /></span><span>Loading Permit Hours…</span></main>;
   }
 
   return (
     <main className="app-shell" id="top">
       <header className="topbar">
-        <a className="brand" href="#top" aria-label="Permit Miles home">
+        <a className="brand" href="#top" aria-label="Permit Hours home">
           <span className="brand-mark"><CarFront size={20} strokeWidth={2.4} /></span>
-          <span>Permit Miles</span>
+          <span>Permit Hours</span>
         </a>
         <div className="top-actions">
           {data.drivers.length > 0 && (
