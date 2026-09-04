@@ -966,7 +966,7 @@ export default function Home() {
                 <>
                   <div>
                     <p className="eyebrow">{new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date())}</p>
-                    <h1>Ready for a drive, {selected?.name}?</h1>
+                    <h1 className="drive-prompt">Ready for a drive, {selected?.name}?</h1>
                     <p className="lede">Choose the conditions, then start the clock.</p>
                   </div>
                   <div className="drive-options">
@@ -1147,15 +1147,16 @@ export default function Home() {
             <DialogDescription>Keep everyone’s copy of the driving log current—even when a device temporarily loses its connection.</DialogDescription>
           </DialogHeader>
 
-          {!cloud.state.user ? (
-            <div className="account-intro">
-              <span className="account-hero"><CloudUpload size={28} /></span>
-              <div><strong>Sync with your Google account</strong><p>Your local log stays available offline. When connected, Firebase syncs it to approved family members.</p></div>
-              <Button type="button" disabled={cloudBusy || !online} onClick={() => void runCloudAction(cloud.signInWithGoogle)}><UserRound /> Continue with Google</Button>
-              {!online && <small>Connect to the internet once to sign in. Your driving log remains available offline.</small>}
-            </div>
-          ) : (
-            <div className="account-content">
+          <div className="account-dialog-body">
+            {!cloud.state.user ? (
+              <div className="account-intro">
+                <span className="account-hero"><CloudUpload size={28} /></span>
+                <div><strong>Sync with your Google account</strong><p>Your local log stays available offline. When connected, Firebase syncs it to approved family members.</p></div>
+                <Button type="button" disabled={cloudBusy || !online} onClick={() => void runCloudAction(cloud.signInWithGoogle)}><UserRound /> Continue with Google</Button>
+                {!online && <small>Connect to the internet once to sign in. Your driving log remains available offline.</small>}
+              </div>
+            ) : (
+              <div className="account-content">
               <div className="account-profile">
                 <span>{(cloud.state.user.displayName ?? cloud.state.user.email ?? '?').charAt(0).toUpperCase()}</span>
                 <div><strong>{cloud.state.user.displayName ?? 'Google account'}</strong><small>{cloud.state.user.email}</small></div>
@@ -1210,8 +1211,9 @@ export default function Home() {
                   <p>{cloud.state.role === 'viewer' ? 'You can see drivers, goals, and drive history, but you cannot change the shared log.' : 'You can start, stop, and edit drives. Only the household owner can manage access.'}</p>
                 </div>
               )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
 
           {cloud.state.user && <DialogFooter><Button variant="outline" type="button" disabled={cloudBusy} onClick={() => void runCloudAction(cloud.signOutUser)}><LogOut /> Sign out</Button></DialogFooter>}
         </DialogContent>
