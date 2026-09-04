@@ -18,6 +18,7 @@ import {
   Moon,
   Pencil,
   Plus,
+  RotateCcw,
   Settings2,
   ShieldCheck,
   Snowflake,
@@ -50,6 +51,22 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useFirebaseSync, type FamilyRole } from '@/lib/firebase-sync';
+import {
+  IMPORT_FIELDS,
+  IMPORT_PRESETS,
+  detectImportPreset,
+  mappingKey,
+  normalizeCsvRows,
+  parseCsvImport,
+  suggestCsvMapping,
+  type CsvMapping,
+  type ImportCandidate,
+  type ImportDateFormat,
+  type ImportDurationUnit,
+  type ImportOptions,
+  type ImportRowResult,
+  type ParsedCsv,
+} from '@/lib/csv-import';
 
 type Period = 'day' | 'night';
 type Weather = 'Clear' | 'Cloudy' | 'Rain' | 'Snow' | 'Other';
@@ -69,6 +86,8 @@ type DriveSession = {
   period: Period;
   weather: Weather;
   notes: string;
+  importBatchId?: string;
+  importSource?: string;
 };
 
 type ActiveDrive = {
@@ -98,7 +117,33 @@ type SessionDraft = {
   notes: string;
 };
 
+type CsvImportPreview = {
+  ready: ImportCandidate[];
+  duplicates: number;
+  errors: ImportRowResult[];
+};
+
+type CsvImportDraft = {
+  fileName: string;
+  parsed: ParsedCsv;
+  mapping: CsvMapping;
+  presetId: string;
+  options: ImportOptions;
+  step: 'map' | 'preview' | 'done';
+  preview: CsvImportPreview | null;
+  remembered: boolean;
+  imported: { sessionIds: string[]; createdDriverIds: string[] } | null;
+};
+
+type SavedImportMapping = {
+  mapping: CsvMapping;
+  presetId: string;
+  dateFormat: ImportDateFormat;
+  durationUnit: ImportDurationUnit;
+};
+
 const STORAGE_KEY = 'permit-miles-data-v1';
+const IMPORT_MAPPINGS_KEY = 'permit-hours-import-mappings-v1';
 const EMPTY_DATA: AppData = { version: 1, drivers: [], sessions: [], active: null, selectedId: null };
 const weatherOptions: Weather[] = ['Clear', 'Cloudy', 'Rain', 'Snow', 'Other'];
 
@@ -236,99 +281,6 @@ function parseJsonBackup(text: string): AppData {
   };
 }
 
-function parseCsv(text: string) {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = '';
-  let quoted = false;
-  for (let index = 0; index < text.length; index += 1) {
-    const character = text[index];
-    if (character === '"') {
-      if (quoted && text[index + 1] === '"') {
-        field += '"';
-        index += 1;
-      } else {
-        quoted = !quoted;
-      }
-    } else if (character === ',' && !quoted) {
-      row.push(field);
-      field = '';
-    } else if ((character === '\n' || character === '\r') && !quoted) {
-      if (character === '\r' && text[index + 1] === '\n') index += 1;
-      row.push(field);
-      if (row.some((cell) => cell.length > 0)) rows.push(row);
-      row = [];
-      field = '';
-    } else {
-      field += character;
-    }
-  }
-  if (quoted) throw new Error('The CSV file has an unfinished quoted value.');
-  row.push(field);
-  if (row.some((cell) => cell.length > 0)) rows.push(row);
-  return rows;
-}
-
-function importCsvBackup(text: string, current: AppData) {
-  const rows = parseCsv(text);
-  if (rows.length < 2) throw new Error('The CSV file does not contain any drive entries.');
-  const headers = rows[0].map((header, index) => (index === 0 ? header.replace(/^\uFEFF/, '') : header).trim().toLowerCase());
-  const requiredHeaders = ['driver', 'start', 'end', 'day_or_night', 'weather', 'notes'];
-  if (requiredHeaders.some((header) => !headers.includes(header))) throw new Error('This CSV file is not a Permit Hours export.');
-  const column = (name: string) => headers.indexOf(name);
-  const drivers = [...current.drivers];
-  const sessions = [...current.sessions];
-  const driversByName = new Map(drivers.map((driver) => [driver.name.trim().toLowerCase(), driver]));
-  const signatures = new Set(sessions.map((session) => `${session.driverId}\u0000${session.start}\u0000${session.end}\u0000${session.period}\u0000${session.weather}\u0000${session.notes}`));
-  let imported = 0;
-  let duplicates = 0;
-
-  rows.slice(1).forEach((cells, rowIndex) => {
-    const driverName = (cells[column('driver')] ?? '').trim();
-    const startValue = (cells[column('start')] ?? '').trim();
-    const endValue = (cells[column('end')] ?? '').trim();
-    const periodValue = (cells[column('day_or_night')] ?? '').trim().toLowerCase();
-    const weatherValue = (cells[column('weather')] ?? '').trim();
-    const notes = cells[column('notes')] ?? '';
-    if (!driverName || !isDateString(startValue) || !isDateString(endValue)
-      || new Date(endValue) <= new Date(startValue)
-      || !['day', 'night'].includes(periodValue) || !weatherOptions.includes(weatherValue as Weather)) {
-      throw new Error(`CSV row ${rowIndex + 2} contains an invalid drive entry.`);
-    }
-
-    const driverKey = driverName.toLowerCase();
-    let driver = driversByName.get(driverKey);
-    if (!driver) {
-      driver = { id: id(), name: driverName, totalGoal: 50, nightGoal: 10 };
-      drivers.push(driver);
-      driversByName.set(driverKey, driver);
-    }
-    const session = {
-      id: id(),
-      driverId: driver.id,
-      start: new Date(startValue).toISOString(),
-      end: new Date(endValue).toISOString(),
-      period: periodValue as Period,
-      weather: weatherValue as Weather,
-      notes,
-    } satisfies DriveSession;
-    const signature = `${session.driverId}\u0000${session.start}\u0000${session.end}\u0000${session.period}\u0000${session.weather}\u0000${session.notes}`;
-    if (signatures.has(signature)) {
-      duplicates += 1;
-      return;
-    }
-    signatures.add(signature);
-    sessions.push(session);
-    imported += 1;
-  });
-
-  return {
-    data: { ...current, drivers, sessions, selectedId: current.selectedId ?? drivers[0]?.id ?? null },
-    imported,
-    duplicates,
-  };
-}
-
 export default function Home() {
   const [data, setData] = useState<AppData>(EMPTY_DATA);
   const [ready, setReady] = useState(false);
@@ -343,6 +295,7 @@ export default function Home() {
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
   const [sessionDraft, setSessionDraft] = useState<SessionDraft | null>(null);
   const [sessionToDelete, setSessionToDelete] = useState<DriveSession | null>(null);
+  const [csvImport, setCsvImport] = useState<CsvImportDraft | null>(null);
   const [notice, setNotice] = useState('');
   const [accountDialogOpen, setAccountDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -625,6 +578,155 @@ export default function Home() {
     downloadFile(`permit-hours-${dateInputValue(new Date())}.csv`, csv, 'text/csv;charset=utf-8');
   }
 
+  function prepareImportPreview(draft: CsvImportDraft): CsvImportPreview {
+    const results = normalizeCsvRows(draft.parsed, draft.mapping, draft.options);
+    const driversByName = new Map(data.drivers.map((driver) => [driver.name.trim().toLowerCase(), driver.id]));
+    const signatures = new Set(data.sessions.map((session) => `${session.driverId}\u0000${session.start}\u0000${session.end}\u0000${session.period}\u0000${session.weather}\u0000${session.notes}`));
+    const ready: ImportCandidate[] = [];
+    const errors: ImportRowResult[] = [];
+    let duplicates = 0;
+
+    results.forEach((result) => {
+      if (!result.candidate) {
+        errors.push(result);
+        return;
+      }
+      const candidate = result.candidate;
+      const driverKey = candidate.driverName.trim().toLowerCase();
+      const driverId = driversByName.get(driverKey) ?? `new:${driverKey}`;
+      const signature = `${driverId}\u0000${candidate.start}\u0000${candidate.end}\u0000${candidate.period}\u0000${candidate.weather}\u0000${candidate.notes}`;
+      if (signatures.has(signature)) {
+        duplicates += 1;
+        return;
+      }
+      signatures.add(signature);
+      ready.push(candidate);
+    });
+    return { ready, duplicates, errors };
+  }
+
+  function openCsvImport(fileName: string, text: string) {
+    const parsed = parseCsvImport(text);
+    const key = mappingKey(parsed.headers);
+    let saved: SavedImportMapping | null = null;
+    try {
+      const mappings = JSON.parse(localStorage.getItem(IMPORT_MAPPINGS_KEY) ?? '{}') as Record<string, SavedImportMapping>;
+      saved = mappings[key] ?? null;
+    } catch {
+      saved = null;
+    }
+    const detectedPreset = saved?.presetId ?? detectImportPreset(fileName, parsed.headers);
+    const savedMappingIsValid = saved && IMPORT_FIELDS.every(({ id: field }) => saved!.mapping[field] === null
+      || Number.isInteger(saved!.mapping[field]) && saved!.mapping[field]! >= 0 && saved!.mapping[field]! < parsed.headers.length);
+    setCsvImport({
+      fileName,
+      parsed,
+      mapping: savedMappingIsValid ? saved!.mapping : suggestCsvMapping(parsed, detectedPreset),
+      presetId: detectedPreset,
+      options: {
+        dateFormat: saved?.dateFormat ?? 'auto',
+        durationUnit: saved?.durationUnit ?? 'auto',
+        defaultDriver: selected?.name ?? '',
+        defaultStartTime: '',
+        defaultPeriod: period,
+        defaultWeather: weather,
+      },
+      step: 'map',
+      preview: null,
+      remembered: Boolean(savedMappingIsValid),
+      imported: null,
+    });
+  }
+
+  function setImportPreset(presetId: string) {
+    setCsvImport((current) => current ? {
+      ...current,
+      presetId,
+      mapping: suggestCsvMapping(current.parsed, presetId),
+      preview: null,
+      remembered: false,
+    } : null);
+  }
+
+  function previewCsvImport() {
+    if (!csvImport) return;
+    const preview = prepareImportPreview(csvImport);
+    setCsvImport({ ...csvImport, preview, step: 'preview' });
+  }
+
+  function commitCsvImport() {
+    if (!csvImport?.preview?.ready.length) return;
+    const batchId = id();
+    const drivers = [...data.drivers];
+    const sessions = [...data.sessions];
+    const driversByName = new Map(drivers.map((driver) => [driver.name.trim().toLowerCase(), driver]));
+    const signatures = new Set(sessions.map((session) => `${session.driverId}\u0000${session.start}\u0000${session.end}\u0000${session.period}\u0000${session.weather}\u0000${session.notes}`));
+    const sessionIds: string[] = [];
+    const createdDriverIds: string[] = [];
+
+    csvImport.preview.ready.forEach((candidate) => {
+      const driverKey = candidate.driverName.trim().toLowerCase();
+      let driver = driversByName.get(driverKey);
+      if (!driver) {
+        driver = { id: id(), name: candidate.driverName.trim(), totalGoal: 50, nightGoal: 10 };
+        drivers.push(driver);
+        driversByName.set(driverKey, driver);
+        createdDriverIds.push(driver.id);
+      }
+      const signature = `${driver.id}\u0000${candidate.start}\u0000${candidate.end}\u0000${candidate.period}\u0000${candidate.weather}\u0000${candidate.notes}`;
+      if (signatures.has(signature)) return;
+      signatures.add(signature);
+      const session: DriveSession = {
+        id: id(),
+        driverId: driver.id,
+        start: candidate.start,
+        end: candidate.end,
+        period: candidate.period,
+        weather: candidate.weather,
+        notes: candidate.notes,
+        importBatchId: batchId,
+        importSource: csvImport.fileName,
+      };
+      sessions.push(session);
+      sessionIds.push(session.id);
+    });
+
+    if (!sessionIds.length) return setNotice('Those drives are already in the log.');
+    setData({ ...data, drivers, sessions, selectedId: data.selectedId ?? drivers[0]?.id ?? null });
+    try {
+      const key = mappingKey(csvImport.parsed.headers);
+      const mappings = JSON.parse(localStorage.getItem(IMPORT_MAPPINGS_KEY) ?? '{}') as Record<string, SavedImportMapping>;
+      mappings[key] = {
+        mapping: csvImport.mapping,
+        presetId: csvImport.presetId,
+        dateFormat: csvImport.options.dateFormat,
+        durationUnit: csvImport.options.durationUnit,
+      };
+      localStorage.setItem(IMPORT_MAPPINGS_KEY, JSON.stringify(mappings));
+    } catch {
+      // Import still succeeds if this browser cannot remember mapping preferences.
+    }
+    setCsvImport({ ...csvImport, step: 'done', imported: { sessionIds, createdDriverIds } });
+  }
+
+  function undoCsvImport() {
+    if (!csvImport?.imported) return;
+    const sessionIds = new Set(csvImport.imported.sessionIds);
+    const createdDriverIds = new Set(csvImport.imported.createdDriverIds);
+    setData((current) => {
+      const sessions = current.sessions.filter((session) => !sessionIds.has(session.id));
+      const drivers = current.drivers.filter((driver) => !createdDriverIds.has(driver.id) || sessions.some((session) => session.driverId === driver.id));
+      return {
+        ...current,
+        sessions,
+        drivers,
+        selectedId: drivers.some((driver) => driver.id === current.selectedId) ? current.selectedId : drivers[0]?.id ?? null,
+      };
+    });
+    setCsvImport(null);
+    setNotice('Import undone.');
+  }
+
   async function importBackup(event: ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget;
     const file = input.files?.[0];
@@ -645,10 +747,7 @@ export default function Home() {
         return;
       }
 
-      const result = importCsvBackup(text, data);
-      setData(result.data);
-      const duplicateNote = result.duplicates ? ` ${result.duplicates} duplicate${result.duplicates === 1 ? '' : 's'} skipped.` : '';
-      setNotice(`${result.imported} drive${result.imported === 1 ? '' : 's'} imported.${duplicateNote}`);
+      openCsvImport(file.name, text);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'That backup could not be imported.');
     }
@@ -713,9 +812,9 @@ export default function Home() {
         <div className="top-actions">
           {(!readOnly || data.drivers.length > 0) && (
             <div className="export-actions" aria-label="Import and export data">
-              {!readOnly && <label className="import-action" title="Import JSON or CSV">
+              {!readOnly && <label className="import-action" title="Import JSON, CSV, or TSV">
                 <Upload size={16} /> <span>Import</span>
-                <input className="file-picker" type="file" accept=".json,.csv,application/json,text/csv" onChange={(event) => void importBackup(event)} />
+                <input className="file-picker" type="file" accept=".json,.csv,.tsv,application/json,text/csv,text/tab-separated-values" onChange={(event) => void importBackup(event)} />
               </label>}
               {data.drivers.length > 0 && <>
                 <button type="button" onClick={exportJson} title="Export JSON"><FileJson size={16} /> <span>JSON</span></button>
@@ -893,6 +992,87 @@ export default function Home() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={Boolean(csvImport)} onOpenChange={(open) => { if (!open) setCsvImport(null); }}>
+        <DialogContent className="permit-dialog import-dialog sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{csvImport?.step === 'done' ? 'Driving history imported' : 'Import driving history'}</DialogTitle>
+            <DialogDescription>
+              {csvImport?.step === 'done'
+                ? 'The new drives are saved on this device and will join family sync normally.'
+                : 'Your file is processed on this device. Review the suggested columns before anything is added.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {csvImport?.step === 'map' && <div className="import-form dialog-form">
+            <div className="import-source-row">
+              <label htmlFor="import-source">Source
+                <select id="import-source" value={csvImport.presetId} onChange={(event) => setImportPreset(event.target.value)}>
+                  {IMPORT_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}
+                </select>
+              </label>
+              <div className="import-file-summary"><FileSpreadsheet size={18} /><span><strong>{csvImport.fileName}</strong><small>{csvImport.parsed.rows.length} rows · {csvImport.parsed.headers.length} columns</small></span></div>
+            </div>
+            <p className="import-hint"><CircleHelp size={16} /><span>{IMPORT_PRESETS.find((preset) => preset.id === csvImport.presetId)?.hint}</span></p>
+            {csvImport.remembered && <p className="remembered-mapping"><Check size={15} /> Using the mapping you approved last time for these columns.</p>}
+
+            <div className="mapping-heading"><div><strong>Match the columns</strong><p>Suggested locally from headings and sample values.</p></div><Button variant="outline" type="button" onClick={() => setCsvImport({ ...csvImport, mapping: suggestCsvMapping(csvImport.parsed, csvImport.presetId), remembered: false })}>Suggest again</Button></div>
+            <div className="mapping-grid">
+              {IMPORT_FIELDS.map((field) => <label key={field.id} htmlFor={`map-${field.id}`}>
+                <span>{field.label}<small>{field.detail}</small></span>
+                <select
+                  id={`map-${field.id}`}
+                  value={csvImport.mapping[field.id] ?? ''}
+                  onChange={(event) => setCsvImport({
+                    ...csvImport,
+                    mapping: { ...csvImport.mapping, [field.id]: event.target.value === '' ? null : Number(event.target.value) },
+                    remembered: false,
+                  })}
+                >
+                  <option value="">Not included</option>
+                  {csvImport.parsed.headers.map((header, index) => <option key={`${header}-${index}`} value={index}>{header}</option>)}
+                </select>
+              </label>)}
+            </div>
+
+            <details className="raw-preview">
+              <summary>Preview original file</summary>
+              <div className="import-table-scroll"><table><thead><tr>{csvImport.parsed.headers.map((header, index) => <th key={`${header}-${index}`}>{header}</th>)}</tr></thead><tbody>{csvImport.parsed.rows.slice(0, 3).map((row, rowIndex) => <tr key={rowIndex}>{csvImport.parsed.headers.map((_, columnIndex) => <td key={columnIndex}>{row[columnIndex] || '—'}</td>)}</tr>)}</tbody></table></div>
+            </details>
+
+            <div className="import-defaults">
+              <label htmlFor="import-driver">Driver when blank<Input id="import-driver" value={csvImport.options.defaultDriver} onChange={(event) => setCsvImport({ ...csvImport, options: { ...csvImport.options, defaultDriver: event.target.value } })} placeholder="Driver’s name" /></label>
+              <label htmlFor="import-date-format">Date format<select id="import-date-format" value={csvImport.options.dateFormat} onChange={(event) => setCsvImport({ ...csvImport, options: { ...csvImport.options, dateFormat: event.target.value as ImportDateFormat } })}><option value="auto">Auto / U.S. when ambiguous</option><option value="mdy">Month / day / year</option><option value="dmy">Day / month / year</option><option value="ymd">Year / month / day</option></select></label>
+              <label htmlFor="import-duration-unit">Numeric durations<select id="import-duration-unit" value={csvImport.options.durationUnit} onChange={(event) => setCsvImport({ ...csvImport, options: { ...csvImport.options, durationUnit: event.target.value as ImportDurationUnit } })}><option value="auto">Auto (plain numbers are minutes)</option><option value="minutes">Minutes</option><option value="hours">Hours</option></select></label>
+              <label htmlFor="import-start-default">Start time when missing<Input id="import-start-default" type="time" value={csvImport.options.defaultStartTime} onChange={(event) => setCsvImport({ ...csvImport, options: { ...csvImport.options, defaultStartTime: event.target.value } })} /></label>
+              <label htmlFor="import-period-default">Day/night when blank<select id="import-period-default" value={csvImport.options.defaultPeriod} onChange={(event) => setCsvImport({ ...csvImport, options: { ...csvImport.options, defaultPeriod: event.target.value as Period } })}><option value="day">Day</option><option value="night">Night</option></select></label>
+              <label htmlFor="import-weather-default">Weather when blank<select id="import-weather-default" value={csvImport.options.defaultWeather} onChange={(event) => setCsvImport({ ...csvImport, options: { ...csvImport.options, defaultWeather: event.target.value as Weather } })}>{weatherOptions.map((option) => <option key={option}>{option}</option>)}</select></label>
+            </div>
+            {csvImport.parsed.warnings.length > 0 && <div className="import-warnings"><strong>File warnings</strong>{csvImport.parsed.warnings.map((warning) => <p key={warning}>{warning}</p>)}</div>}
+          </div>}
+
+          {csvImport?.step === 'preview' && csvImport.preview && <div className="import-review">
+            <div className="import-counts">
+              <span className="ready"><strong>{csvImport.preview.ready.length}</strong> ready</span>
+              <span><strong>{csvImport.preview.duplicates}</strong> duplicates skipped</span>
+              <span className={csvImport.preview.errors.length ? 'warning' : ''}><strong>{csvImport.preview.errors.length}</strong> rows need attention</span>
+            </div>
+            {csvImport.preview.ready.length > 0 && <div className="import-table-scroll"><table><thead><tr><th>Row</th><th>Driver</th><th>Date and time</th><th>Duration</th><th>Type</th></tr></thead><tbody>{csvImport.preview.ready.slice(0, 10).map((candidate) => <tr key={candidate.sourceRow}><td>{candidate.sourceRow}</td><td>{candidate.driverName}</td><td>{new Date(candidate.start).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</td><td>{formatDuration(new Date(candidate.end).getTime() - new Date(candidate.start).getTime())}</td><td>{candidate.period}</td></tr>)}</tbody></table>{csvImport.preview.ready.length > 10 && <p className="more-rows">Plus {csvImport.preview.ready.length - 10} more ready drives.</p>}</div>}
+            {csvImport.preview.errors.length > 0 && <div className="import-errors"><strong>Rows that will not be imported</strong>{csvImport.preview.errors.slice(0, 8).map((result) => <p key={result.sourceRow}><span>Row {result.sourceRow}</span>{result.error}</p>)}{csvImport.preview.errors.length > 8 && <p>Plus {csvImport.preview.errors.length - 8} more rows with issues.</p>}</div>}
+            <p className="import-review-note">Nothing has been added yet. Go back to adjust a mapping or import the valid drives shown here.</p>
+          </div>}
+
+          {csvImport?.step === 'done' && csvImport.imported && <div className="import-complete">
+            <span><Check size={30} /></span>
+            <strong>{csvImport.imported.sessionIds.length} drive{csvImport.imported.sessionIds.length === 1 ? '' : 's'} added</strong>
+            <p>The column choices were remembered for future files with the same headings.</p>
+          </div>}
+
+          {csvImport?.step === 'map' && <DialogFooter><Button variant="outline" type="button" onClick={() => setCsvImport(null)}>Cancel</Button><Button type="button" onClick={previewCsvImport}>Review drives</Button></DialogFooter>}
+          {csvImport?.step === 'preview' && <DialogFooter><Button variant="outline" type="button" onClick={() => setCsvImport({ ...csvImport, step: 'map' })}>Back to mapping</Button><Button type="button" disabled={!csvImport.preview?.ready.length} onClick={commitCsvImport}>Import {csvImport.preview?.ready.length ?? 0} drives</Button></DialogFooter>}
+          {csvImport?.step === 'done' && <DialogFooter><Button variant="outline" type="button" onClick={undoCsvImport}><RotateCcw /> Undo import</Button><Button type="button" onClick={() => setCsvImport(null)}>Done</Button></DialogFooter>}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={accountDialogOpen} onOpenChange={setAccountDialogOpen}>
         <DialogContent className="permit-dialog account-dialog sm:max-w-lg">
