@@ -1,5 +1,5 @@
-const CACHE_NAME = 'permit-hours-v3';
-const APP_SHELL = ['./', './manifest.webmanifest', './favicon.svg', './icon.svg', './pdf.worker.min.mjs'];
+const CACHE_NAME = 'permit-hours-v4';
+const APP_SHELL = ['./', './manifest.webmanifest', './favicon.svg', './icon.svg', './pdf.min.mjs', './pdf.worker.min.mjs'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {

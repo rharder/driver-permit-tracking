@@ -1,4 +1,3 @@
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { ParsedCsv } from './csv-import';
 
 type PositionedText = {
@@ -12,6 +11,26 @@ type PdfTextItem = {
   str: string;
   transform: number[];
   width: number;
+};
+
+type PdfPage = {
+  view: number[];
+  getTextContent: () => Promise<{ items: unknown[] }>;
+};
+
+type PdfDocument = {
+  numPages: number;
+  getPage: (pageNumber: number) => Promise<PdfPage>;
+};
+
+type PdfLoadingTask = {
+  promise: Promise<PdfDocument>;
+  destroy: () => Promise<void>;
+};
+
+type PdfJsModule = {
+  GlobalWorkerOptions: { workerSrc: string };
+  getDocument: (options: { data: Uint8Array }) => PdfLoadingTask;
 };
 
 type RoadReadyEntry = {
@@ -255,11 +274,11 @@ export function parseRoadReadyTextPages(pages: RoadReadyTextPage[]): ParsedCsv {
 }
 
 export async function parseRoadReadyPdf(buffer: ArrayBuffer): Promise<ParsedCsv> {
-  if (typeof window !== 'undefined') {
-    const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
-    GlobalWorkerOptions.workerSrc = `${basePath}/pdf.worker.min.mjs`;
-  }
-  const loadingTask = getDocument({ data: new Uint8Array(buffer) });
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+  const moduleUrl = `${basePath}/pdf.min.mjs`;
+  const pdfJs = await import(/* @vite-ignore */ moduleUrl) as PdfJsModule;
+  pdfJs.GlobalWorkerOptions.workerSrc = `${basePath}/pdf.worker.min.mjs`;
+  const loadingTask = pdfJs.getDocument({ data: new Uint8Array(buffer) });
   try {
     const document = await loadingTask.promise;
     if (document.numPages > 100) throw new Error('This PDF has too many pages to import safely.');
@@ -268,7 +287,7 @@ export async function parseRoadReadyPdf(buffer: ArrayBuffer): Promise<ParsedCsv>
       const page = await document.getPage(pageNumber);
       const content = await page.getTextContent();
       const items = content.items.flatMap((item) => {
-        if (!('str' in item) || !normalized(item.str)) return [];
+        if (!item || typeof item !== 'object' || !('str' in item) || typeof item.str !== 'string' || !normalized(item.str)) return [];
         const textItem = item as PdfTextItem;
         return [{
           text: normalized(textItem.str),
