@@ -1227,7 +1227,7 @@ export default function Home() {
           </form>
           <DialogFooter className="permit-dialog-footer">
             {driverDraft.id && <Button variant="destructive" type="button" onClick={removeDriver}><Trash2 /> Delete</Button>}
-            <div><Button variant="outline" type="button" onClick={() => setDriverDialogOpen(false)}>Cancel</Button><Button className="save-driver-action" type="submit" form="driver-form">Save driver</Button></div>
+            <div><Button variant="outline" type="button" onClick={() => setDriverDialogOpen(false)}>Cancel</Button><Button type="submit" form="driver-form">Save driver</Button></div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
