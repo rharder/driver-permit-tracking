@@ -191,6 +191,11 @@ h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp
 .dialog-form label > span { color: #90968f; font-weight: 550; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .time-entry-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.duration-input { position: relative; display: block; }
+.duration-input input { padding-right: 40px; appearance: textfield; }
+.duration-input input::-webkit-inner-spin-button,
+.duration-input input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.duration-input span { position: absolute; top: 50%; right: 12px; transform: translateY(-50%); color: #90968f; font-size: 11px; font-weight: 650; pointer-events: none; }
 .duration-summary { margin: -4px 0 0; padding: 10px 12px; display: flex; align-items: center; gap: 8px; color: #5c655d; background: #f4f5f1; border: 1px solid #e4e6df; border-radius: 11px; font-size: 11px; }
 .duration-summary svg { flex: 0 0 auto; color: var(--green); }
 .duration-summary strong { color: var(--ink); }
