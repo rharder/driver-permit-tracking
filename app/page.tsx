@@ -67,6 +67,7 @@ import {
   type ImportRowResult,
   type ParsedCsv,
 } from '@/lib/csv-import';
+import { isStudentDrivingLoggerBackup, parseStudentDrivingLoggerBackup } from '@/lib/student-driving-logger-import';
 
 type Period = 'day' | 'night';
 type Weather = 'Clear' | 'Cloudy' | 'Rain' | 'Snow' | 'Other';
@@ -605,8 +606,7 @@ export default function Home() {
     return { ready, duplicates, errors };
   }
 
-  function openCsvImport(fileName: string, text: string) {
-    const parsed = parseCsvImport(text);
+  function openParsedImport(fileName: string, parsed: ParsedCsv, sourcePreset?: string) {
     const key = mappingKey(parsed.headers);
     let saved: SavedImportMapping | null = null;
     try {
@@ -615,7 +615,7 @@ export default function Home() {
     } catch {
       saved = null;
     }
-    const detectedPreset = saved?.presetId ?? detectImportPreset(fileName, parsed.headers);
+    const detectedPreset = sourcePreset ?? saved?.presetId ?? detectImportPreset(fileName, parsed.headers);
     const savedMappingIsValid = saved && IMPORT_FIELDS.every(({ id: field }) => saved!.mapping[field] === null
       || Number.isInteger(saved!.mapping[field]) && saved!.mapping[field]! >= 0 && saved!.mapping[field]! < parsed.headers.length);
     setCsvImport({
@@ -636,6 +636,10 @@ export default function Home() {
       remembered: Boolean(savedMappingIsValid),
       imported: null,
     });
+  }
+
+  function openCsvImport(fileName: string, text: string) {
+    openParsedImport(fileName, parseCsvImport(text));
   }
 
   function setImportPreset(presetId: string) {
@@ -739,6 +743,11 @@ export default function Home() {
       const text = await file.text();
       const isJson = file.name.toLowerCase().endsWith('.json') || file.type.includes('json');
       if (isJson) {
+        const jsonValue = JSON.parse(text) as unknown;
+        if (isStudentDrivingLoggerBackup(jsonValue)) {
+          openParsedImport(file.name, parseStudentDrivingLoggerBackup(jsonValue), 'driving-logger');
+          return;
+        }
         const imported = parseJsonBackup(text);
         const hasCurrentLog = data.drivers.length > 0 || data.sessions.length > 0 || data.active;
         if (hasCurrentLog && !confirm('Restore this JSON backup? It will replace the current log on this device and in family sync.')) return;
@@ -1011,7 +1020,7 @@ export default function Home() {
                   {IMPORT_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}
                 </select>
               </label>
-              <div className="import-file-summary"><FileSpreadsheet size={18} /><span><strong>{csvImport.fileName}</strong><small>{csvImport.parsed.rows.length} rows · {csvImport.parsed.headers.length} columns</small></span></div>
+              <div className="import-file-summary">{csvImport.fileName.toLowerCase().endsWith('.json') ? <FileJson size={18} /> : <FileSpreadsheet size={18} />}<span><strong>{csvImport.fileName}</strong><small>{csvImport.parsed.rows.length} rows · {csvImport.parsed.headers.length} fields</small></span></div>
             </div>
             <p className="import-hint"><CircleHelp size={16} /><span>{IMPORT_PRESETS.find((preset) => preset.id === csvImport.presetId)?.hint}</span></p>
             {csvImport.remembered && <p className="remembered-mapping"><Check size={15} /> Using the mapping you approved last time for these columns.</p>}
@@ -1036,7 +1045,7 @@ export default function Home() {
             </div>
 
             <details className="raw-preview">
-              <summary>Preview original file</summary>
+              <summary>Preview parsed rows</summary>
               <div className="import-table-scroll"><table><thead><tr>{csvImport.parsed.headers.map((header, index) => <th key={`${header}-${index}`}>{header}</th>)}</tr></thead><tbody>{csvImport.parsed.rows.slice(0, 3).map((row, rowIndex) => <tr key={rowIndex}>{csvImport.parsed.headers.map((_, columnIndex) => <td key={columnIndex}>{row[columnIndex] || '—'}</td>)}</tr>)}</tbody></table></div>
             </details>
 

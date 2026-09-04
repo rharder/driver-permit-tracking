@@ -106,8 +106,8 @@ export const IMPORT_PRESETS: ImportPreset[] = [
   {
     id: 'driving-logger',
     label: 'Student Driving Logger',
-    hint: 'Student Driving Logger documents PDF and app-backup exports, but does not publish a stable CSV schema. Auto-detect will inspect any CSV conversion and leave uncertain fields for you to map.',
-    filenameHints: ['student-driving-logger', 'driving-logger'],
+    hint: 'Recognizes Student Driving Logger JSON backups, including Apple dates, durations, driver names, day/night, weather, and notes. GPS route data is left out.',
+    filenameHints: ['student-driving-logger', 'driving-logger', 'drives-backup'],
   },
   {
     id: 'generic',
