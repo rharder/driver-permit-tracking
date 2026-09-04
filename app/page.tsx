@@ -19,6 +19,7 @@ import {
   Moon,
   Pencil,
   Plus,
+  Printer,
   RotateCcw,
   Settings2,
   ShieldCheck,
@@ -234,6 +235,14 @@ function csvCell(value: string | number) {
   return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
+function printDate(value: Date) {
+  return new Intl.DateTimeFormat(undefined, { month: '2-digit', day: '2-digit', year: 'numeric' }).format(value);
+}
+
+function printTime(value: Date) {
+  return value.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
 function isDateString(value: unknown): value is string {
   return typeof value === 'string' && Number.isFinite(new Date(value).getTime());
 }
@@ -383,6 +392,7 @@ export default function Home() {
     () => selected ? data.sessions.filter((session) => session.driverId === selected.id).sort((a, b) => b.start.localeCompare(a.start)) : [],
     [data.sessions, selected],
   );
+  const printableSessions = useMemo(() => [...driverSessions].sort((a, b) => a.start.localeCompare(b.start)), [driverSessions]);
   const totalTime = driverSessions.reduce((sum, session) => sum + durationMs(session), 0);
   const nightTime = driverSessions.filter((session) => session.period === 'night').reduce((sum, session) => sum + durationMs(session), 0);
   const totalPercent = selected ? percent(totalTime, selected.totalGoal) : 0;
@@ -580,6 +590,17 @@ export default function Home() {
     });
     const csv = [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\n');
     downloadFile(`permit-hours-${dateInputValue(new Date())}.csv`, csv, 'text/csv;charset=utf-8');
+  }
+
+  function printDrivingLog() {
+    if (!selected) return;
+    const previousTitle = document.title;
+    const safeName = selected.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'driver';
+    const restoreTitle = () => { document.title = previousTitle; };
+    document.title = `permit-hours-${safeName}-${dateInputValue(new Date())}`;
+    window.addEventListener('afterprint', restoreTitle, { once: true });
+    window.print();
+    window.setTimeout(restoreTitle, 1_000);
   }
 
   function prepareImportPreview(draft: CsvImportDraft): CsvImportPreview {
@@ -840,6 +861,7 @@ export default function Home() {
                 <input className="file-picker" type="file" disabled={importingFile} accept=".pdf,.json,.csv,.tsv,application/pdf,application/json,text/csv,text/tab-separated-values" onChange={(event) => void importBackup(event)} />
               </label>}
               {data.drivers.length > 0 && <>
+                <button type="button" onClick={printDrivingLog} title={`Print ${selected?.name ?? 'driver'}’s signed log`}><Printer size={16} /> <span>Print</span></button>
                 <button type="button" onClick={exportJson} title="Export JSON"><FileJson size={16} /> <span>JSON</span></button>
                 <button type="button" onClick={exportCsv} title="Export CSV"><FileSpreadsheet size={16} /> <span>CSV</span></button>
               </>}
@@ -998,6 +1020,13 @@ export default function Home() {
           </section>
         </>
       )}
+
+      {selected && <PrintableReport
+        driver={selected}
+        sessions={printableSessions}
+        totalTime={totalTime}
+        nightTime={nightTime}
+      />}
 
       {notice && <output className="toast"><Check size={17} /> {notice}</output>}
 
@@ -1206,6 +1235,69 @@ export default function Home() {
         </DialogContent>
       </Dialog>
     </main>
+  );
+}
+
+function PrintableReport({ driver, sessions, totalTime, nightTime }: {
+  driver: Driver;
+  sessions: DriveSession[];
+  totalTime: number;
+  nightTime: number;
+}) {
+  const daytimeTime = Math.max(0, totalTime - nightTime);
+  return (
+    <section className="print-report">
+      <header className="print-header">
+        <div><span className="print-brand-mark"><CarFront size={18} /></span><strong>Permit Hours</strong></div>
+        <div><h1>Supervised Driving Log</h1><p>Generated {printDate(new Date())}</p></div>
+      </header>
+
+      <div className="print-driver-fields">
+        <p><span>Driver name</span><strong>{driver.name}</strong></p>
+        <p><span>Permit number</span><i /></p>
+        <p><span>Parent, guardian, or instructor</span><i /></p>
+      </div>
+
+      <div className="print-totals" aria-label="Driving totals and goals">
+        <div><span>Daytime</span><strong>{formatDuration(daytimeTime)}</strong></div>
+        <div><span>Nighttime</span><strong>{formatDuration(nightTime)}</strong><small>Goal {driver.nightGoal}h</small></div>
+        <div><span>Total driving</span><strong>{formatDuration(totalTime)}</strong><small>Goal {driver.totalGoal}h</small></div>
+      </div>
+
+      <table className="print-log-table">
+        <caption>Detailed practice log</caption>
+        <thead><tr><th>Date</th><th>Start–end</th><th>Day</th><th>Night</th><th>Weather</th><th>Notes</th></tr></thead>
+        <tbody>
+          {sessions.length ? sessions.map((session) => {
+            const start = new Date(session.start);
+            const end = new Date(session.end);
+            const duration = formatDuration(durationMs(session));
+            const nextDay = start.toDateString() !== end.toDateString();
+            return <tr key={session.id}>
+              <td>{printDate(start)}</td>
+              <td>{printTime(start)}–{printTime(end)}{nextDay ? ' +1' : ''}</td>
+              <td>{session.period === 'day' ? duration : '—'}</td>
+              <td>{session.period === 'night' ? duration : '—'}</td>
+              <td>{session.weather}</td>
+              <td>{session.notes || '—'}</td>
+            </tr>;
+          }) : <tr><td colSpan={6} className="print-empty">No completed drives are recorded.</td></tr>}
+        </tbody>
+        <tfoot><tr><th colSpan={2}>Totals</th><td>{formatDuration(daytimeTime)}</td><td>{formatDuration(nightTime)}</td><td colSpan={2}>{formatDuration(totalTime)} total</td></tr></tfoot>
+      </table>
+
+      <section className="print-certification">
+        <h2>Review and certification</h2>
+        <p>Review the entries and totals before signing. The parent, guardian, or driving instructor responsible for this log should sign below. Confirm that your licensing agency accepts this report and whether it requires an additional state form.</p>
+        <p className="certification-statement">I certify that the supervised driving experience recorded above is complete and accurate to the best of my knowledge.</p>
+        <div className="print-signature-fields">
+          <p><i /><span>Signature</span></p>
+          <p><i /><span>Printed name</span></p>
+          <p><i /><span>Date</span></p>
+        </div>
+        <small>Generated from the Permit Hours driving log. This report does not replace a form specifically required by a state licensing agency.</small>
+      </section>
+    </section>
   );
 }
 

@@ -290,6 +290,7 @@ h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp
 .no-members { margin: 12px 0 0; color: var(--quiet); font-size: 11px; }
 .role-help { margin: 13px 0 0; display: flex; gap: 8px; align-items: flex-start; color: var(--quiet); font-size: 11px; line-height: 1.5; }
 .role-help svg { flex: 0 0 auto; color: var(--green); }
+.print-report { display: none; }
 @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(.8); } }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 @keyframes weather-label { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
@@ -343,3 +344,55 @@ h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp
 }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
+
+@page { size: letter portrait; margin: .42in; }
+
+@media print {
+  html, body { min-width: 0; color: #111; background: #fff; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .app-shell { min-height: 0; padding: 0; }
+  .app-shell > :not(.print-report) { display: none !important; }
+  .print-report { display: block; color: #111; font-family: Arial, Helvetica, sans-serif; font-size: 8pt; line-height: 1.28; }
+  .print-header { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: end; padding-bottom: 9px; border-bottom: 2px solid #1d5135; }
+  .print-header > div:first-child { display: flex; align-items: center; gap: 7px; color: #1d5135; font-size: 11pt; }
+  .print-brand-mark { width: 25px; height: 25px; display: grid; place-items: center; color: #fff; background: #1d5135; border-radius: 6px; }
+  .print-header > div:last-child { text-align: right; }
+  .print-report h1 { margin: 0; color: #111; font-size: 17pt; font-weight: 750; letter-spacing: -.02em; }
+  .print-header p { margin: 2px 0 0; color: #555; font-size: 7.5pt; }
+  .print-driver-fields { margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 22px; }
+  .print-driver-fields p { min-width: 0; margin: 0; display: grid; grid-template-columns: max-content minmax(80px, 1fr); gap: 8px; align-items: end; }
+  .print-driver-fields p:last-child { grid-column: 1 / -1; }
+  .print-driver-fields span { color: #555; font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .print-driver-fields strong, .print-driver-fields i { min-height: 15px; display: block; padding: 0 3px 2px; border-bottom: 1px solid #777; font-size: 9pt; font-style: normal; }
+  .print-totals { margin: 10px 0; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid #b7b7b7; border-radius: 6px; overflow: hidden; }
+  .print-totals > div { min-height: 40px; display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-content: center; padding: 5px 10px; background: #f4f5f2; }
+  .print-totals > div + div { border-left: 1px solid #b7b7b7; }
+  .print-totals span { align-self: center; color: #444; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+  .print-totals strong { grid-row: 1 / span 2; grid-column: 2; align-self: center; font-size: 13pt; }
+  .print-totals small { color: #666; font-size: 7pt; }
+  .print-log-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .print-log-table caption { margin: 0 0 4px; color: #222; font-size: 9pt; font-weight: 750; text-align: left; }
+  .print-log-table thead { display: table-header-group; }
+  .print-log-table tfoot { display: table-row-group; }
+  .print-log-table tr { break-inside: avoid; page-break-inside: avoid; }
+  .print-log-table th, .print-log-table td { padding: 3.5px 4px; border: 1px solid #aaa; vertical-align: top; overflow-wrap: anywhere; }
+  .print-log-table thead th { color: #fff; background: #315f46; font-size: 7pt; font-weight: 750; text-align: left; text-transform: uppercase; letter-spacing: .025em; }
+  .print-log-table th:nth-child(1) { width: 12%; }
+  .print-log-table th:nth-child(2) { width: 20%; }
+  .print-log-table th:nth-child(3), .print-log-table th:nth-child(4) { width: 8%; }
+  .print-log-table th:nth-child(5) { width: 13%; }
+  .print-log-table th:nth-child(6) { width: 39%; }
+  .print-log-table td:nth-child(-n+5) { white-space: nowrap; }
+  .print-log-table tbody tr:nth-child(even) td { background: #f7f7f5; }
+  .print-log-table tfoot th, .print-log-table tfoot td { background: #e8ece9; font-weight: 750; }
+  .print-empty { padding: 14px !important; color: #666; text-align: center; }
+  .print-certification { margin-top: 10px; padding-top: 8px; border-top: 1.5px solid #555; break-inside: avoid; page-break-inside: avoid; }
+  .print-certification h2 { margin: 0 0 3px; font-size: 10pt; }
+  .print-certification > p { margin: 0 0 5px; color: #333; }
+  .print-certification .certification-statement { font-weight: 700; }
+  .print-signature-fields { margin: 13px 0 7px; display: grid; grid-template-columns: 2fr 1.5fr .75fr; gap: 18px; }
+  .print-signature-fields p { margin: 0; }
+  .print-signature-fields i { min-height: 13px; display: block; border-bottom: 1px solid #333; }
+  .print-signature-fields span { display: block; margin-top: 2px; color: #555; font-size: 7pt; }
+  .print-certification > small { color: #666; font-size: 6.5pt; }
+}
