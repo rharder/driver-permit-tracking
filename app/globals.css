@@ -254,6 +254,7 @@ h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp
 .dialog-form textarea { padding: 10px; resize: vertical; }
 .permit-dialog [data-slot="dialog-footer"] { margin: 8px -24px -24px; padding: 15px 24px; }
 .permit-dialog [data-slot="dialog-footer"] button { height: 37px; padding: 0 13px; }
+.permit-dialog .save-driver-action { color: var(--primary-foreground); }
 .permit-dialog-footer { justify-content: space-between !important; }
 .permit-dialog-footer > div { display: flex; gap: 7px; }
 .account-dialog { max-height: min(760px, calc(100vh - 28px)); overflow-y: auto; }
