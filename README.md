@@ -4,7 +4,7 @@ Permit Hours is a teen driving-hours tracker to help you track your teen's progr
 supports offline access, multiple drivers, one-tap timers, day/night goals, weather conditions, manual entries, family
 sync, role-based access, exporting, and importing of popular driving log formats.
 
-<img src="docs/permit-hours-mobile.png" alt="Permit Hours mobile driving log showing driver selection, start-drive controls, and progress" width="360">
+<img src="docs/permit-hours-mobile.png" alt="Permit Hours in an iPhone frame, showing driver selection, start-drive controls, and progress" width="360">
 
 ## Run locally
 

@@ -5,7 +5,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://rharder.github.io/driver-permit-tracking/'),
   title: 'Permit Hours — Teen driving log',
   description: 'A simple, private, offline driving practice tracker for permit hours.',
-  manifest: './manifest.webmanifest',
+  // Refresh installation metadata cached by devices that first visited before the rename.
+  manifest: './manifest.webmanifest?v=2',
   applicationName: 'Permit Hours',
   appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Permit Hours' },
   openGraph: {
