@@ -85,6 +85,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .export-actions { display: flex; align-items: center; gap: 5px; }
 .export-actions button, .import-action { display: flex; align-items: center; gap: 5px; height: 32px; padding: 0 9px; color: var(--quiet); background: transparent; border: 1px solid transparent; border-radius: 9px; cursor: pointer; font-size: 11px; font-weight: 700; }
 .export-actions button:hover, .import-action:hover, .import-action:focus-within { color: var(--green-dark); background: var(--surface); border-color: var(--line); }
+.export-menu { min-width: 220px; padding: 5px; }
+.export-menu [data-slot="dropdown-menu-item"] { min-height: 48px; gap: 9px; padding: 7px 9px; color: var(--ink); cursor: pointer; }
+.export-menu [data-slot="dropdown-menu-item"] > svg { color: var(--green); }
+.export-menu [data-slot="dropdown-menu-item"] > span { display: flex; flex-direction: column; gap: 1px; }
+.export-menu [data-slot="dropdown-menu-item"] strong { font-size: 12px; }
+.export-menu [data-slot="dropdown-menu-item"] small { color: var(--quiet); font-size: 10px; }
 .import-action { position: relative; }
 .import-action.busy { cursor: wait; opacity: .65; pointer-events: none; }
 .file-picker { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

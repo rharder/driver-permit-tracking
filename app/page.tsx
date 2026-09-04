@@ -51,6 +51,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { useFirebaseSync, type FamilyRole } from '@/lib/firebase-sync';
 import {
@@ -864,9 +870,14 @@ export default function Home() {
                 <input className="file-picker" type="file" disabled={importingFile} accept=".pdf,.json,.csv,.tsv,application/pdf,application/json,text/csv,text/tab-separated-values" onChange={(event) => void importBackup(event)} />
               </label>}
               {data.drivers.length > 0 && <>
+                <DropdownMenu>
+                  <DropdownMenuTrigger type="button" title="Export driving data"><Download size={16} /> <span>Export</span></DropdownMenuTrigger>
+                  <DropdownMenuContent className="export-menu" align="end">
+                    <DropdownMenuItem onClick={exportJson}><FileJson /><span><strong>JSON backup</strong><small>Complete data for restoring later</small></span></DropdownMenuItem>
+                    <DropdownMenuItem onClick={exportCsv}><FileSpreadsheet /><span><strong>CSV spreadsheet</strong><small>Drive history for other apps</small></span></DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <button type="button" onClick={printDrivingLog} title={`Print ${selected?.name ?? 'driver'}’s signed log`}><Printer size={16} /> <span>Print</span></button>
-                <button type="button" onClick={exportJson} title="Export JSON"><FileJson size={16} /> <span>JSON</span></button>
-                <button type="button" onClick={exportCsv} title="Export CSV"><FileSpreadsheet size={16} /> <span>CSV</span></button>
               </>}
             </div>
           )}
