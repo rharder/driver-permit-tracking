@@ -238,6 +238,7 @@ h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp
 .import-complete p { margin: 8px 0 0; color: var(--quiet); font-size: 13px; }
 .dialog-form { display: flex; flex-direction: column; gap: 16px; padding: 7px 0 4px; }
 .dialog-form label > span { color: #90968f; font-weight: 550; }
+.dialog-form .field-help { margin-top: -2px; color: var(--quiet); font-size: 11px; font-weight: 500; line-height: 1.4; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .time-entry-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 .duration-input { position: relative; display: block; }

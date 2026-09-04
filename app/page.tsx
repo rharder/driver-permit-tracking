@@ -78,6 +78,7 @@ type Weather = 'Clear' | 'Cloudy' | 'Rain' | 'Snow' | 'Other';
 type Driver = {
   id: string;
   name: string;
+  legalName?: string;
   totalGoal: number;
   nightGoal: number;
 };
@@ -255,10 +256,11 @@ function parseJsonBackup(text: string): AppData {
 
   const drivers = value.drivers.map((driver) => {
     if (!driver || typeof driver.id !== 'string' || typeof driver.name !== 'string' || !driver.name.trim()
+      || (driver.legalName !== undefined && typeof driver.legalName !== 'string')
       || !Number.isFinite(driver.totalGoal) || !Number.isFinite(driver.nightGoal)) {
       throw new Error('The JSON backup contains an invalid driver.');
     }
-    return { ...driver, name: driver.name.trim() };
+    return { ...driver, name: driver.name.trim(), legalName: driver.legalName?.trim() || undefined };
   });
   const driverIds = new Set(drivers.map((driver) => driver.id));
   if (driverIds.size !== drivers.length) throw new Error('The JSON backup contains duplicate driver IDs.');
@@ -303,7 +305,7 @@ export default function Home() {
   const [online, setOnline] = useState(true);
   const [newName, setNewName] = useState('');
   const [driverDialogOpen, setDriverDialogOpen] = useState(false);
-  const [driverDraft, setDriverDraft] = useState<Driver>({ id: '', name: '', totalGoal: 50, nightGoal: 10 });
+  const [driverDraft, setDriverDraft] = useState<Driver>({ id: '', name: '', legalName: '', totalGoal: 50, nightGoal: 10 });
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
   const [sessionDraft, setSessionDraft] = useState<SessionDraft | null>(null);
   const [sessionToDelete, setSessionToDelete] = useState<DriveSession | null>(null);
@@ -417,7 +419,7 @@ export default function Home() {
 
   function openAddDriver() {
     if (readOnly) return setNotice('This account has view-only access.');
-    setDriverDraft({ id: '', name: '', totalGoal: 50, nightGoal: 10 });
+    setDriverDraft({ id: '', name: '', legalName: '', totalGoal: 50, nightGoal: 10 });
     setDriverDialogOpen(true);
   }
 
@@ -431,12 +433,13 @@ export default function Home() {
     event.preventDefault();
     if (readOnly) return setNotice('This account has view-only access.');
     const name = driverDraft.name.trim();
+    const legalName = driverDraft.legalName?.trim() || undefined;
     if (!name) return;
     if (driverDraft.id) {
-      setData({ ...data, drivers: data.drivers.map((driver) => driver.id === driverDraft.id ? { ...driverDraft, name } : driver) });
-      setNotice('Driver goals updated.');
+      setData({ ...data, drivers: data.drivers.map((driver) => driver.id === driverDraft.id ? { ...driverDraft, name, legalName } : driver) });
+      setNotice('Driver details updated.');
     } else {
-      const driver = { ...driverDraft, id: id(), name };
+      const driver = { ...driverDraft, id: id(), name, legalName };
       setData({ ...data, drivers: [...data.drivers, driver], selectedId: driver.id });
       setNotice(`${name} was added.`);
     }
@@ -1205,9 +1208,10 @@ export default function Home() {
 
       <Dialog open={driverDialogOpen} onOpenChange={setDriverDialogOpen}>
         <DialogContent className="permit-dialog sm:max-w-md">
-          <DialogHeader><DialogTitle>{driverDraft.id ? 'Driver settings' : 'Add a driver'}</DialogTitle><DialogDescription>Each driver has their own goals and driving log on this device.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>{driverDraft.id ? 'Driver settings' : 'Add a driver'}</DialogTitle><DialogDescription>Choose the name shown in the app and the legal name used on signed reports.</DialogDescription></DialogHeader>
           <form id="driver-form" onSubmit={saveDriver} className="dialog-form">
-            <label htmlFor="driver-name">Name<Input id="driver-name" value={driverDraft.name} onChange={(event) => setDriverDraft({ ...driverDraft, name: event.target.value })} placeholder="First name" required /></label>
+            <label htmlFor="driver-name">Name used in the app<Input id="driver-name" value={driverDraft.name} onChange={(event) => setDriverDraft({ ...driverDraft, name: event.target.value })} placeholder="First name or nickname" required /><small className="field-help">This is the short name shown when switching drivers.</small></label>
+            <label htmlFor="driver-legal-name">Full legal name <span>(optional)</span><Input id="driver-legal-name" value={driverDraft.legalName ?? ''} onChange={(event) => setDriverDraft({ ...driverDraft, legalName: event.target.value })} placeholder="First, middle, and last name" autoComplete="off" /><small className="field-help">Used on the printable supervised driving log. Until added, the app name is used.</small></label>
             <div className="form-grid"><label htmlFor="total-goal">Total hours goal<Input id="total-goal" type="number" min="1" step="1" value={driverDraft.totalGoal} onChange={(event) => setDriverDraft({ ...driverDraft, totalGoal: Number(event.target.value) })} required /></label><label htmlFor="night-goal">Night hours goal<Input id="night-goal" type="number" min="0" step="1" value={driverDraft.nightGoal} onChange={(event) => setDriverDraft({ ...driverDraft, nightGoal: Number(event.target.value) })} required /></label></div>
           </form>
           <DialogFooter className="permit-dialog-footer">
@@ -1253,7 +1257,7 @@ function PrintableReport({ driver, sessions, totalTime, nightTime }: {
       </header>
 
       <div className="print-driver-fields">
-        <p><span>Driver name</span><strong>{driver.name}</strong></p>
+        <p><span>Driver’s full legal name</span><strong>{driver.legalName?.trim() || driver.name}</strong></p>
         <p><span>Permit number</span><i /></p>
         <p><span>Parent, guardian, or instructor</span><i /></p>
       </div>
