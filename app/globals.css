@@ -238,6 +238,7 @@ h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp
 .role-help svg { flex: 0 0 auto; color: var(--green); }
 @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(.8); } }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes weather-label { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 
 @media (max-width: 800px) {
   .app-shell { padding: 0 18px 40px; }
@@ -262,6 +263,7 @@ h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp
   h1 { font-size: 34px; }
   .start-button { width: 188px; height: 188px; }
   .weather-options button span { display: none; }
+  .weather-options button.reveal-label span { display: inline; animation: weather-label 1.8s ease both; }
   .weather-options button { padding: 7px 9px; }
   .history-panel { padding: 20px 17px; }
   .session-row { gap: 10px; }

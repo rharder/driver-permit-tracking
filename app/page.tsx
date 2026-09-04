@@ -4,6 +4,7 @@ import { ChangeEvent, SubmitEvent, useCallback, useEffect, useMemo, useState } f
 import {
   CarFront,
   Check,
+  CircleHelp,
   Clock3,
   Cloud,
   CloudRain,
@@ -152,6 +153,7 @@ function weatherIcon(weather: Weather, size = 17) {
   if (weather === 'Rain') return <CloudRain size={size} />;
   if (weather === 'Snow') return <Snowflake size={size} />;
   if (weather === 'Cloudy') return <Cloud size={size} />;
+  if (weather === 'Other') return <CircleHelp size={size} />;
   return <Sun size={size} />;
 }
 
@@ -322,6 +324,7 @@ export default function Home() {
   const [ready, setReady] = useState(false);
   const [period, setPeriod] = useState<Period>('day');
   const [weather, setWeather] = useState<Weather>('Clear');
+  const [revealedWeather, setRevealedWeather] = useState<{ value: Weather } | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [online, setOnline] = useState(true);
   const [newName, setNewName] = useState('');
@@ -388,6 +391,12 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, [notice]);
 
+  useEffect(() => {
+    if (!revealedWeather) return;
+    const timer = window.setTimeout(() => setRevealedWeather(null), 1800);
+    return () => window.clearTimeout(timer);
+  }, [revealedWeather]);
+
   const shareableData = useMemo(() => ({ ...data, selectedId: null }), [data]);
   const acceptCloudData = useCallback((remote: AppData) => {
     setData((current) => ({
@@ -411,6 +420,11 @@ export default function Home() {
   const totalPercent = selected ? percent(totalTime, selected.totalGoal) : 0;
   const nightPercent = selected ? percent(nightTime, selected.nightGoal) : 0;
   const liveDuration = data.active ? now - new Date(data.active.start).getTime() : 0;
+
+  function selectWeather(option: Weather) {
+    setWeather(option);
+    setRevealedWeather({ value: option });
+  }
 
   function addFirstDriver(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -792,7 +806,7 @@ export default function Home() {
                     </div>
                     <div className="weather-options" aria-label="Weather">
                       {weatherOptions.map((option) => (
-                        <button className={weather === option ? 'selected' : ''} key={option} type="button" onClick={() => setWeather(option)}>
+                        <button className={`${weather === option ? 'selected' : ''} ${revealedWeather?.value === option ? 'reveal-label' : ''}`} key={option} type="button" onClick={() => selectWeather(option)}>
                           {weatherIcon(option)}<span>{option}</span>
                         </button>
                       ))}
