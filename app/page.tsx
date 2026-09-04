@@ -13,6 +13,7 @@ import {
   Eye,
   FileJson,
   FileSpreadsheet,
+  FileText,
   History,
   LogOut,
   Moon,
@@ -68,6 +69,7 @@ import {
   type ParsedCsv,
 } from '@/lib/csv-import';
 import { isStudentDrivingLoggerBackup, parseStudentDrivingLoggerBackup } from '@/lib/student-driving-logger-import';
+import { parseRoadReadyPdf } from '@/lib/roadready-pdf-import';
 
 type Period = 'day' | 'night';
 type Weather = 'Clear' | 'Cloudy' | 'Rain' | 'Snow' | 'Other';
@@ -302,6 +304,7 @@ export default function Home() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<Exclude<FamilyRole, 'owner'>>('supervisor');
   const [cloudBusy, setCloudBusy] = useState(false);
+  const [importingFile, setImportingFile] = useState(false);
 
   useEffect(() => {
     let initialData = EMPTY_DATA;
@@ -737,9 +740,18 @@ export default function Home() {
     input.value = '';
     if (!file) return;
     if (readOnly) return setNotice('This account has view-only access.');
-    if (file.size > 5 * 1024 * 1024) return setNotice('That backup is too large to import.');
+    const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+    const maximumSize = isPdf ? 15 * 1024 * 1024 : 5 * 1024 * 1024;
+    if (file.size > maximumSize) return setNotice(`That ${isPdf ? 'PDF' : 'backup'} is too large to import.`);
 
+    setImportingFile(true);
     try {
+      if (isPdf) {
+        setNotice('Reading RoadReady PDF…');
+        openParsedImport(file.name, await parseRoadReadyPdf(await file.arrayBuffer()), 'roadready');
+        setNotice('RoadReady drives are ready to review.');
+        return;
+      }
       const text = await file.text();
       const isJson = file.name.toLowerCase().endsWith('.json') || file.type.includes('json');
       if (isJson) {
@@ -759,6 +771,8 @@ export default function Home() {
       openCsvImport(file.name, text);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'That backup could not be imported.');
+    } finally {
+      setImportingFile(false);
     }
   }
 
@@ -821,9 +835,9 @@ export default function Home() {
         <div className="top-actions">
           {(!readOnly || data.drivers.length > 0) && (
             <div className="export-actions" aria-label="Import and export data">
-              {!readOnly && <label className="import-action" title="Import JSON, CSV, or TSV">
-                <Upload size={16} /> <span>Import</span>
-                <input className="file-picker" type="file" accept=".json,.csv,.tsv,application/json,text/csv,text/tab-separated-values" onChange={(event) => void importBackup(event)} />
+              {!readOnly && <label className={`import-action ${importingFile ? 'busy' : ''}`} title="Import PDF, JSON, CSV, or TSV" aria-disabled={importingFile}>
+                <Upload size={16} /> <span>{importingFile ? 'Reading…' : 'Import'}</span>
+                <input className="file-picker" type="file" disabled={importingFile} accept=".pdf,.json,.csv,.tsv,application/pdf,application/json,text/csv,text/tab-separated-values" onChange={(event) => void importBackup(event)} />
               </label>}
               {data.drivers.length > 0 && <>
                 <button type="button" onClick={exportJson} title="Export JSON"><FileJson size={16} /> <span>JSON</span></button>
@@ -1020,7 +1034,7 @@ export default function Home() {
                   {IMPORT_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}
                 </select>
               </label>
-              <div className="import-file-summary">{csvImport.fileName.toLowerCase().endsWith('.json') ? <FileJson size={18} /> : <FileSpreadsheet size={18} />}<span><strong>{csvImport.fileName}</strong><small>{csvImport.parsed.rows.length} rows · {csvImport.parsed.headers.length} fields</small></span></div>
+              <div className="import-file-summary">{csvImport.fileName.toLowerCase().endsWith('.json') ? <FileJson size={18} /> : csvImport.fileName.toLowerCase().endsWith('.pdf') ? <FileText size={18} /> : <FileSpreadsheet size={18} />}<span><strong>{csvImport.fileName}</strong><small>{csvImport.parsed.rows.length} rows · {csvImport.parsed.headers.length} fields</small></span></div>
             </div>
             <p className="import-hint"><CircleHelp size={16} /><span>{IMPORT_PRESETS.find((preset) => preset.id === csvImport.presetId)?.hint}</span></p>
             {csvImport.remembered && <p className="remembered-mapping"><Check size={15} /> Using the mapping you approved last time for these columns.</p>}

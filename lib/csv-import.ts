@@ -84,12 +84,12 @@ export const IMPORT_PRESETS: ImportPreset[] = [
   },
   {
     id: 'roadready',
-    label: 'RoadReady table',
-    hint: 'RoadReady currently exports a PDF table with Date, Time, Duration, Weather, Road Type, Day/Night, and Notes. Choose this after saving or converting that table to CSV.',
+    label: 'RoadReady PDF',
+    hint: 'Reads RoadReady PDF exports directly, verifies the printed totals, and calculates end times from the daytime and nighttime durations.',
     filenameHints: ['roadready', 'road-ready'],
     aliases: {
       start: ['time'],
-      details: ['road type'],
+      details: ['environment', 'road type'],
       notes: ['notes'],
     },
   },
