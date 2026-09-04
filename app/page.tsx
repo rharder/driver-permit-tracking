@@ -31,6 +31,16 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -332,6 +342,7 @@ export default function Home() {
   const [driverDraft, setDriverDraft] = useState<Driver>({ id: '', name: '', totalGoal: 50, nightGoal: 10 });
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
   const [sessionDraft, setSessionDraft] = useState<SessionDraft | null>(null);
+  const [sessionToDelete, setSessionToDelete] = useState<DriveSession | null>(null);
   const [notice, setNotice] = useState('');
   const [accountDialogOpen, setAccountDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -592,10 +603,11 @@ export default function Home() {
     setNotice(sessionDraft.id ? 'Drive updated.' : 'Drive added.');
   }
 
-  function removeSession(session: DriveSession) {
+  function removeSession() {
     if (readOnly) return setNotice('This account has view-only access.');
-    if (!confirm('Delete this drive from the log?')) return;
-    setData({ ...data, sessions: data.sessions.filter((item) => item.id !== session.id) });
+    if (!sessionToDelete) return;
+    setData((current) => ({ ...current, sessions: current.sessions.filter((item) => item.id !== sessionToDelete.id) }));
+    setSessionToDelete(null);
     setNotice('Drive deleted.');
   }
 
@@ -855,7 +867,7 @@ export default function Home() {
                     <div className="session-date"><strong>{new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(session.start))}</strong><span>{new Date(session.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}–{new Date(session.end).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span></div>
                     <div className="session-weather">{weatherIcon(session.weather)}<span>{session.weather}</span></div>
                     <strong className="session-duration">{formatDuration(durationMs(session))}</strong>
-                    {!readOnly && <div className="session-actions"><button type="button" onClick={() => openEditSession(session)} aria-label="Edit drive"><Pencil size={16} /></button><button type="button" onClick={() => removeSession(session)} aria-label="Delete drive"><Trash2 size={16} /></button></div>}
+                    {!readOnly && <div className="session-actions"><button type="button" onClick={() => openEditSession(session)} aria-label="Edit drive"><Pencil size={16} /></button><button type="button" onClick={() => setSessionToDelete(session)} aria-label="Delete drive"><Trash2 size={16} /></button></div>}
                     {session.notes && <p className="session-notes">{session.notes}</p>}
                   </article>
                 ))}
@@ -866,6 +878,21 @@ export default function Home() {
       )}
 
       {notice && <output className="toast"><Check size={17} /> {notice}</output>}
+
+      <AlertDialog open={Boolean(sessionToDelete)} onOpenChange={(open) => { if (!open) setSessionToDelete(null); }}>
+        <AlertDialogContent className="permit-alert">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this drive?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {sessionToDelete ? `${formatDuration(durationMs(sessionToDelete))} on ${new Intl.DateTimeFormat(undefined, { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(sessionToDelete.start))}` : 'This drive'} will be removed from the log. This can’t be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep drive</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={removeSession}>Delete drive</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={accountDialogOpen} onOpenChange={setAccountDialogOpen}>
         <DialogContent className="permit-dialog account-dialog sm:max-w-lg">

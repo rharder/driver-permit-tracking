@@ -187,6 +187,11 @@ h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp
 .permit-dialog { padding: 24px; border-radius: 20px; box-shadow: 0 28px 80px rgba(30,34,30,.2); }
 .permit-dialog [data-slot="dialog-title"] { font-family: Georgia, "Times New Roman", serif; font-size: 25px; letter-spacing: -.03em; }
 .permit-dialog [data-slot="dialog-description"] { line-height: 1.5; }
+.permit-alert { width: min(calc(100vw - 32px), 400px); padding: 24px; border-radius: 20px; box-shadow: 0 28px 80px rgba(30,34,30,.2); }
+.permit-alert [data-slot="alert-dialog-title"] { font-family: Georgia, "Times New Roman", serif; font-size: 23px; letter-spacing: -.03em; }
+.permit-alert [data-slot="alert-dialog-description"] { line-height: 1.5; }
+.permit-alert [data-slot="alert-dialog-action"] { color: #fff; background: #ad473f; }
+.permit-alert [data-slot="alert-dialog-action"]:hover { background: #963c35; }
 .dialog-form { display: flex; flex-direction: column; gap: 16px; padding: 7px 0 4px; }
 .dialog-form label > span { color: #90968f; font-weight: 550; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -273,7 +278,7 @@ h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp
   .history-panel { padding: 20px 17px; }
   .session-row { gap: 10px; }
   .session-weather span { display: none; }
-  .session-actions button { width: 29px; }
+  .session-actions button { width: 40px; height: 40px; }
   .welcome-panel { margin-top: 24px; padding: 36px 22px; }
   .welcome-form > div { flex-direction: column; }
   .form-grid { grid-template-columns: 1fr; }
