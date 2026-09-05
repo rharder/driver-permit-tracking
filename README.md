@@ -40,6 +40,12 @@ log. The owner can add exact Google-account email addresses as either:
 Only the owner can add or remove household access. The rules file also retains the existing Kids Money Tracker rules
 because both apps share the same Firebase project.
 
+After adding a member, choose **Email invitation** to open a prefilled draft in your mail app, or **Copy invitation** to
+paste it into an email or message. Nothing is sent automatically. Invitations include the app link, access role, the exact
+Google account to sign in with, and iPhone Home Screen instructions. Use **Invite** beside an existing member to share
+their invitation again. If clipboard access is unavailable, the app shows selectable invitation text for manual copying.
+Adding access requires an internet connection; copying invitations for existing members works offline.
+
 ## Data and privacy
 
 Driving data is always stored in the browser first. When signed in, Firestore also keeps a persistent local cache and

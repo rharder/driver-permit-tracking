@@ -58,6 +58,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { FamilyMemberRow } from '@/components/family-member-row';
 import { useFirebaseSync, type FamilyRole } from '@/lib/firebase-sync';
 import {
   IMPORT_FIELDS,
@@ -320,6 +321,7 @@ export default function Home() {
   const [accountDialogOpen, setAccountDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<Exclude<FamilyRole, 'owner'>>('supervisor');
+  const [invitationFor, setInvitationFor] = useState<{ email: string; ownerUid: string } | null>(null);
   const [cloudBusy, setCloudBusy] = useState(false);
   const [importingFile, setImportingFile] = useState(false);
 
@@ -824,7 +826,12 @@ export default function Home() {
   function addHouseholdMember(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     const email = inviteEmail.trim().toLowerCase();
-    if (!email) return;
+    const ownerUid = cloud.state.user?.uid;
+    if (!email || !ownerUid || cloudBusy || !online) return;
+    if (email === cloud.state.user?.email?.trim().toLowerCase()) {
+      setNotice('You already own this household. Add another family member’s Google account.');
+      return;
+    }
     const members = {
       supervisorEmails: inviteRole === 'supervisor'
         ? [...cloud.state.members.supervisorEmails, email]
@@ -834,7 +841,10 @@ export default function Home() {
         : cloud.state.members.viewerEmails.filter((item) => item !== email),
     };
     void runCloudAction(() => cloud.updateMembers(members), `${email} can now sign in.`).then((saved) => {
-      if (saved) setInviteEmail('');
+      if (saved) {
+        setInviteEmail('');
+        setInvitationFor({ email, ownerUid });
+      }
     });
   }
 
@@ -842,7 +852,9 @@ export default function Home() {
     void runCloudAction(() => cloud.updateMembers({
       supervisorEmails: cloud.state.members.supervisorEmails.filter((item) => item !== email),
       viewerEmails: cloud.state.members.viewerEmails.filter((item) => item !== email),
-    }), 'Access removed.');
+    }), 'Access removed.').then((removed) => {
+      if (removed) setInvitationFor((current) => current?.email === email ? null : current);
+    });
   }
 
   const syncIcon = !online || cloud.state.status === 'offline'
@@ -1189,16 +1201,19 @@ export default function Home() {
                 <section className="household-access">
                   <div className="access-heading"><Users size={19} /><div><strong>Household access</strong><p>Add exact Google-account email addresses.</p></div></div>
                   <form className="invite-form" onSubmit={addHouseholdMember}>
-                    <Input type="email" aria-label="Family member email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="family@example.com" required />
-                    <select aria-label="Access role" value={inviteRole} onChange={(event) => setInviteRole(event.target.value as Exclude<FamilyRole, 'owner'>)}>
+                    <Input type="email" aria-label="Family member email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="family@example.com" disabled={cloudBusy} required />
+                    <select aria-label="Access role" value={inviteRole} disabled={cloudBusy} onChange={(event) => setInviteRole(event.target.value as Exclude<FamilyRole, 'owner'>)}>
                       <option value="supervisor">Supervising adult</option>
                       <option value="viewer">View only</option>
                     </select>
-                    <Button type="submit" disabled={cloudBusy || !inviteEmail.trim()}>Add</Button>
+                    <Button type="submit" disabled={cloudBusy || !online || !inviteEmail.trim()}>{cloudBusy ? 'Saving…' : 'Add'}</Button>
                   </form>
+                  {!online && <p className="invite-offline-note">Connect to the internet to add a family member. You can still copy invitations for existing members.</p>}
                   <div className="member-list">
-                    {cloud.state.members.supervisorEmails.map((email) => <MemberRow key={email} email={email} accessLabel="Supervising adult" disabled={cloudBusy} onRemove={() => removeHouseholdMember(email)} />)}
-                    {cloud.state.members.viewerEmails.map((email) => <MemberRow key={email} email={email} accessLabel="View only" disabled={cloudBusy} onRemove={() => removeHouseholdMember(email)} />)}
+                    {(['supervisor', 'viewer'] as const).flatMap((role) => (role === 'supervisor' ? cloud.state.members.supervisorEmails : cloud.state.members.viewerEmails).map((email) => {
+                      const invitationOpen = invitationFor?.email === email && invitationFor.ownerUid === cloud.state.user?.uid;
+                      return <FamilyMemberRow key={email} email={email} role={role} inviterName={cloud.state.user?.displayName} disabled={cloudBusy} invitationOpen={invitationOpen} onToggleInvitation={() => setInvitationFor(invitationOpen ? null : { email, ownerUid: cloud.state.user!.uid })} onRemove={() => removeHouseholdMember(email)} />;
+                    }))}
                     {cloud.state.members.supervisorEmails.length + cloud.state.members.viewerEmails.length === 0 && <p className="no-members">No additional family members yet.</p>}
                   </div>
                   <p className="role-help"><ShieldCheck size={15} /><span><strong>Supervising adults</strong> can start, stop, and edit drives. <strong>View-only members</strong> can follow progress without changing the log.</span></p>
@@ -1325,15 +1340,6 @@ function GoalCard({ icon, label, value, goal, progress, night = false }: { icon:
       <div className="goal-copy"><span>{label}</span><strong>{formatDuration(value)} <small>of {goal}h</small></strong></div>
       <span className="goal-percent">{progress}%</span>
       <div className="meter" aria-label={`${progress}% of ${label.toLowerCase()} goal`}><span style={{ width: `${progress}%` }} /></div>
-    </div>
-  );
-}
-
-function MemberRow({ email, accessLabel, disabled, onRemove }: { email: string; accessLabel: string; disabled: boolean; onRemove: () => void }) {
-  return (
-    <div className="member-row">
-      <span><strong>{email}</strong><small>{accessLabel}</small></span>
-      <button type="button" disabled={disabled} onClick={onRemove} aria-label={`Remove ${email}`}><Trash2 size={15} /></button>
     </div>
   );
 }

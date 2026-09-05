@@ -288,12 +288,22 @@ h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp
 .invite-form input, .invite-form select, .invite-form button { height: 39px; }
 .invite-form select { min-width: 0; padding: 0 8px; color: var(--ink); background: #fff; border: 1px solid var(--input); border-radius: 9px; font-size: 12px; }
 .member-list { margin-top: 12px; border-top: 1px solid #e4e6df; }
-.member-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 2px; border-bottom: 1px solid #ecece7; }
-.member-row > span { min-width: 0; display: flex; flex-direction: column; }
-.member-row strong { overflow: hidden; text-overflow: ellipsis; font-size: 12px; white-space: nowrap; }
-.member-row small { color: var(--quiet); font-size: 10px; }
-.member-row button { width: 30px; height: 30px; flex: 0 0 auto; display: grid; place-items: center; color: var(--destructive); background: transparent; border: 0; border-radius: 8px; cursor: pointer; }
-.member-row button:hover { background: #f8e9e7; }
+.member-row { padding: 10px 2px; border-bottom: 1px solid #ecece7; }
+.member-row-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.member-row-heading > span { min-width: 0; flex: 1 1 150px; display: flex; flex-direction: column; }
+.member-row-heading strong { overflow-wrap: anywhere; font-size: 14px; }
+.member-row-heading small { color: var(--quiet); font-size: 12px; }
+.member-row-actions { display: flex; align-items: center; gap: 4px; }
+.member-row-actions button { min-height: 44px; }
+.member-row-actions button:last-child { width: 44px; }
+.invitation-card { margin-top: 10px; padding: 12px; background: #eff5f0; border: 1px solid #d9e5db; border-radius: 12px; }
+.invitation-card > strong { color: var(--green-dark); font-size: 14px; }
+.invitation-card p, .invite-offline-note { margin: 6px 0 0; color: var(--quiet); font-size: 14px; line-height: 1.5; }
+.invitation-actions { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+.invitation-actions button { min-height: 44px; height: auto; padding: 10px; white-space: normal; }
+.invitation-feedback { display: block; margin-top: 10px; color: var(--quiet); font-size: 12px; line-height: 1.5; }
+.invitation-manual { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; color: var(--ink); font-size: 14px; }
+.invitation-manual textarea { width: 100%; padding: 10px; color: var(--ink); background: #fff; border: 1px solid var(--input); border-radius: 9px; font-size: 16px; line-height: 1.5; resize: vertical; }
 .no-members { margin: 12px 0 0; color: var(--quiet); font-size: 11px; }
 .role-help { margin: 13px 0 0; display: flex; gap: 8px; align-items: flex-start; color: var(--quiet); font-size: 11px; line-height: 1.5; }
 .role-help svg { flex: 0 0 auto; color: var(--green); }
