@@ -6,6 +6,18 @@ sync, role-based access, exporting, and importing of popular driving log formats
 
 <img src="docs/permit-hours-mobile.png" alt="Permit Hours in an iPhone frame, showing driver selection, start-drive controls, and progress" width="360">
 
+## State requirements and flexible goals
+
+Look up all **50 states and DC** from Driving Goals or Driver Settings, with source links, review dates, and editable
+presets. [The maintained state reference](docs/state-driving-requirements.md) lists every state and explains how to update
+the shared dataset. Verify current requirements with your licensing agency; these summaries are not a complete licensing checklist.
+
+Each driver can track total, daytime, nighttime, poor-weather, and challenging-condition goals, with an optional stage
+start date and daily counted-minute limit. Full drive history is always retained; progress and printed reports distinguish
+recorded time from counted time. JSON backups include the goal settings; JSON and CSV exports preserve condition tags.
+The reference and tracking work offline, and changes use the existing family sync. Colorado’s 50-total/10-night defaults
+stay unchanged unless you choose another preset.
+
 ## Run locally
 
 ```bash

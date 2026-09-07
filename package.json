@@ -10,6 +10,9 @@
     "build": "vinext build",
     "start": "wrangler dev --config dist/server/wrangler.json",
     "lint": "oxlint",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "docs:states": "node scripts/state-requirements-doc.mjs",
+    "docs:states:check": "node scripts/state-requirements-doc.mjs --check",
     "format": "oxfmt"
   },
   "dependencies": {

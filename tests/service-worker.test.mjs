@@ -72,9 +72,9 @@ function createWorker() {
   };
 }
 
-test('manifest refreshes a cached installation name and saves it for offline use', async () => {
+void test('manifest refreshes a cached installation name and saves it for offline use', async () => {
   const worker = createWorker();
-  const cache = await worker.caches.open('permit-hours-v5');
+  const cache = await worker.caches.open('permit-hours-v6');
   await cache.put(manifestUrl, new Response('Permit Miles'));
   assert.equal(await (await worker.request()).text(), 'Permit Hours');
   assert.equal(worker.requests[0].options.cache, 'no-cache');
@@ -82,39 +82,39 @@ test('manifest refreshes a cached installation name and saves it for offline use
   assert.equal(await (await worker.request()).text(), 'Permit Hours');
 });
 
-test('offline manifest requests can use the precached version despite query changes', async () => {
+void test('offline manifest requests can use the precached version despite query changes', async () => {
   const worker = createWorker();
-  await (await worker.caches.open('permit-hours-v5')).put(manifestUrl, new Response('Permit Hours'));
+  await (await worker.caches.open('permit-hours-v6')).put(manifestUrl, new Response('Permit Hours'));
   worker.setNetwork(async () => { throw new Error('Offline'); });
   assert.equal(await (await worker.request(`${scope}manifest.webmanifest`)).text(), 'Permit Hours');
 });
 
-test('failed HTTP responses do not replace the offline manifest', async () => {
+void test('failed HTTP responses do not replace the offline manifest', async () => {
   const worker = createWorker();
-  await (await worker.caches.open('permit-hours-v5')).put(manifestUrl, new Response('Permit Hours'));
+  await (await worker.caches.open('permit-hours-v6')).put(manifestUrl, new Response('Permit Hours'));
   worker.setNetwork(async () => new Response('Unavailable', { status: 503 }));
   assert.equal(await (await worker.request()).text(), 'Permit Hours');
 });
 
-test('a missing network and cache returns a network error', async () => {
+void test('a missing network and cache returns a network error', async () => {
   const worker = createWorker();
   worker.setNetwork(async () => { throw new Error('Offline'); });
   assert.equal((await worker.request()).type, 'error');
 });
 
-test('activation replaces app caches without deleting other GitHub Pages apps', async () => {
+void test('activation replaces app caches without deleting other GitHub Pages apps', async () => {
   const worker = createWorker();
-  for (const name of ['permit-miles-v1', 'permit-hours-v4', 'permit-hours-v5', 'other-app-v1']) {
+  for (const name of ['permit-miles-v1', 'permit-hours-v4', 'permit-hours-v5', 'permit-hours-v6', 'other-app-v1']) {
     await worker.caches.open(name);
   }
   await worker.activate();
-  assert.deepEqual(await worker.caches.keys(), ['permit-hours-v5', 'other-app-v1']);
+  assert.deepEqual(await worker.caches.keys(), ['permit-hours-v6', 'other-app-v1']);
 });
 
-test('cached app assets still work offline; external and non-GET requests are untouched', async () => {
+void test('cached app assets still work offline; external and non-GET requests are untouched', async () => {
   const worker = createWorker();
   const asset = `${scope}icon.svg`;
-  await (await worker.caches.open('permit-hours-v5')).put(asset, new Response('icon'));
+  await (await worker.caches.open('permit-hours-v6')).put(asset, new Response('icon'));
   worker.setNetwork(async () => { throw new Error('Offline'); });
   assert.equal(await (await worker.request(asset)).text(), 'icon');
   assert.equal(worker.requests.length, 0);

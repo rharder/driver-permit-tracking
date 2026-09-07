@@ -1,0 +1,1021 @@
+[
+  {
+    "code": "AL",
+    "name": "Alabama",
+    "totalHours": 50,
+    "nightHours": null,
+    "appliesTo": "Teen graduated-license practice route",
+    "notes": [
+      "ALEA currently lists 50 practice hours, or completion of an approved driver-education course. Some older summaries still say 30 hours.",
+      "No separate night-hour minimum is listed. Under-18 applicants generally hold the learner permit for at least six months."
+    ],
+    "sources": [
+      {
+        "label": "Alabama ALEA — Graduated Driver License",
+        "url": "https://www.alea.gov/dps/driver-license/license-and-id-cards/graduated-driver-license"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "AK",
+    "name": "Alaska",
+    "totalHours": 40,
+    "nightHours": null,
+    "appliesTo": "Provisional license, ages 16–17",
+    "notes": [
+      "At least 10 of the 40 hours must involve progressively challenging conditions, such as bad weather or nighttime driving. This is not a night-only quota.",
+      "Hold a learner permit for at least six months. Night, poor weather, or a manually marked challenging drive contributes once to the challenging-condition goal; review whether the practice qualifies."
+    ],
+    "sources": [
+      {
+        "label": "Alaska DMV — Driver Manual",
+        "url": "https://dmv.alaska.gov/media/t5ef5vi2/dlman.pdf"
+      }
+    ],
+    "reviewedOn": "2026-09-07",
+    "challengingHours": 10
+  },
+  {
+    "code": "AZ",
+    "name": "Arizona",
+    "totalHours": 30,
+    "nightHours": 10,
+    "appliesTo": "Class G practice-and-road-test route",
+    "notes": [
+      "An eligible traffic-survival or certified defensive-driving-school education route reduces practice to 20 hours, including 6 at night.",
+      "A qualifying high-school or private driver-education program is another route. Check ADOT's options before choosing a preset; generally hold the permit for six months."
+    ],
+    "sources": [
+      {
+        "label": "Arizona MVD — Teen Permit and License Requirements",
+        "url": "https://azdot.gov/mvd/services/driver-services/teen-drivers/permit-and-license-requirements"
+      }
+    ],
+    "reviewedOn": "2026-09-07",
+    "alternativePresets": [
+      {
+        "label": "Eligible traffic-survival / defensive-driving education route",
+        "totalHours": 20,
+        "nightHours": 6
+      }
+    ]
+  },
+  {
+    "code": "AR",
+    "name": "Arkansas",
+    "totalHours": null,
+    "nightHours": null,
+    "appliesTo": "Teen learner/intermediate licensing",
+    "notes": [
+      "No fixed supervised-practice hour minimum is listed in the state guidance; IIHS also lists none. Set personal practice goals rather than treating this as no need to practice.",
+      "Age, supervised-driving, driving-record, and graduated-license restrictions still apply."
+    ],
+    "sources": [
+      {
+        "label": "Arkansas DFA — Learner's and Intermediate License",
+        "url": "https://www.dfa.arkansas.gov/office/driver-services/licenses-ids-permits/graduated-licenses/learners-and-intermediate-license/"
+      },
+      {
+        "label": "IIHS — Graduated Licensing Comparison",
+        "url": "https://www.iihs.org/research-areas/teenagers/graduated-licensing-laws-table"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "CA",
+    "name": "California",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Provisional license, under 18",
+    "notes": [
+      "Practice with an eligible California-licensed adult age 25 or older.",
+      "The 50 practice hours are separate from six hours of professional driver training. A permit generally must be held for six months."
+    ],
+    "sources": [
+      {
+        "label": "California DMV — Teen Driver Roadmap",
+        "url": "https://www.dmv.ca.gov/portal/teen-drivers/"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "CO",
+    "name": "Colorado",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Minor license, under 18",
+    "notes": [
+      "Use the state's DR 2324 log and hold an instruction permit for at least 12 months.",
+      "Drivers younger than 16½ have a separate behind-the-wheel training requirement; qualifying distance/hardship alternatives have additional conditions."
+    ],
+    "sources": [
+      {
+        "label": "Colorado DMV — Drive Time Log, DR 2324",
+        "url": "https://dmv.colorado.gov/sites/dmv/files/documents/DR2324_2022.pdf"
+      },
+      {
+        "label": "Colorado DMV — Minor License",
+        "url": "https://dmv.colorado.gov/minor-license"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "CT",
+    "name": "Connecticut",
+    "totalHours": 40,
+    "nightHours": null,
+    "appliesTo": "License applicants ages 16–17",
+    "notes": [
+      "The 40 practice hours may combine qualified parent, commercial-school, and secondary-school instruction. No separate night-hour minimum is listed.",
+      "The permit wait is generally 120 days for the qualifying school-training route or 180 days for home training. Safe-driving and parent-training requirements also apply."
+    ],
+    "sources": [
+      {
+        "label": "Connecticut DMV — Teen Driver Training",
+        "url": "https://portal.ct.gov/dmv/licenses-permits-ids/teen-drivers-license/driver-training-for-teens"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "DE",
+    "name": "Delaware",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Level One learner permit",
+    "notes": [
+      "A sponsor certifies the practice during the first six months, before unsupervised driving.",
+      "The full Level One program lasts 12 months; approved driver education and sponsor requirements also apply."
+    ],
+    "sources": [
+      {
+        "label": "Delaware DMV — Graduated Driver License",
+        "url": "https://dmv.de.gov/DriverServices/drivers_license/index.shtml?dc=dr_lic_grad_dl"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "DC",
+    "name": "District of Columbia",
+    "totalHours": 40,
+    "nightHours": null,
+    "appliesTo": "Learner stage of the GRAD program",
+    "notes": [
+      "The learner stage requires 40 supervised hours. A separate 10-hour supervised-night certification comes during the provisional stage, before the full license with conditions.",
+      "Do not combine these stages into a single 40-total/10-night preset. Stage-specific certification and eligibility rules apply."
+    ],
+    "sources": [
+      {
+        "label": "DC DMV — Provisional License Certification",
+        "url": "https://dmv.dc.gov/am/publication/certification-eligibility-provisional-and-full-licensesconditions-0"
+      },
+      {
+        "label": "DC DMV — Full-License Night Certification",
+        "url": "https://dmv.dc.gov/publication/certification-eligibility-full-license-conditions-0"
+      }
+    ],
+    "reviewedOn": "2026-09-07",
+    "alternativePresets": [
+      {
+        "label": "Provisional to full — new nighttime practice",
+        "totalHours": 10,
+        "nightHours": 10,
+        "requiresStart": true
+      }
+    ]
+  },
+  {
+    "code": "FL",
+    "name": "Florida",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Teen learner-to-operator license",
+    "notes": [
+      "A parent, guardian, or other responsible adult certifies the practice; the permit is generally held for 12 months or until age 18.",
+      "Learners initially drive only in daylight, then may drive until 10 p.m. after three months. Check current education and eligibility requirements."
+    ],
+    "sources": [
+      {
+        "label": "Florida FLHSMV — Certification of Driving Experience",
+        "url": "https://www.flhsmv.gov/pdf/forms/71143.pdf"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "GA",
+    "name": "Georgia",
+    "totalHours": 40,
+    "nightHours": 6,
+    "appliesTo": "Class D license, ages 16–17",
+    "notes": [
+      "Joshua's Law has different school and parent-taught training methods. Complete the requirements for the chosen method as well as the supervised practice.",
+      "Do not automatically add school-training time twice when using the parent-taught route."
+    ],
+    "sources": [
+      {
+        "label": "Georgia DDS — Joshua's Law Requirements",
+        "url": "https://dds.georgia.gov/joshuas-law-requirements"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "HI",
+    "name": "Hawaii",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Under-18 driver-education/licensing route",
+    "notes": [
+      "State public-school guidance calls for 40 daytime hours and 10 nighttime hours with a licensed adult age 21 or older.",
+      "Driver education and a notarized practice acknowledgement/log are required by the program. Check the instructor and county licensing office."
+    ],
+    "sources": [
+      {
+        "label": "Hawaii DOE — Molokai High School Driver Education",
+        "url": "https://sites.google.com/k12.hi.us/molokai-high-school-driver-ed/home"
+      },
+      {
+        "label": "Hawaii DOT — Driver Education",
+        "url": "https://hidot.hawaii.gov/highways/safe-communites/driver-education/"
+      }
+    ],
+    "reviewedOn": "2026-09-07",
+    "dayHours": 40
+  },
+  {
+    "code": "ID",
+    "name": "Idaho",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Graduated licensing, under 17",
+    "notes": [
+      "Complete the required driver-training program, then the supervised instruction period of at least six months.",
+      "State education guidance specifies 40 daytime and 10 nighttime hours; the preset keeps these as separate goals."
+    ],
+    "sources": [
+      {
+        "label": "Idaho Department of Education — Driver Education",
+        "url": "https://apps2.sde.idaho.gov/DriverEducation"
+      }
+    ],
+    "reviewedOn": "2026-09-07",
+    "dayHours": 40
+  },
+  {
+    "code": "IL",
+    "name": "Illinois",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Graduated licensing, under 18",
+    "notes": [
+      "Practice is supervised by an eligible parent or licensed adult age 21 or older.",
+      "Hold the instruction permit for at least nine months and meet the driver-education requirements. Permit curfews and passenger restrictions also apply."
+    ],
+    "sources": [
+      {
+        "label": "Illinois Secretary of State — Graduated Driver's License",
+        "url": "https://www.ilsos.gov/departments/drivers/teen-driver-safety/gdl.html"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "IN",
+    "name": "Indiana",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Learner-to-driver license",
+    "notes": [
+      "Use the BMV supervised-driving log and an eligible supervising driver; eligibility varies by age.",
+      "A daylight-only permit restriction exempts the night portion, but not the 50-hour total. Driver-education and permit-holding rules are separate."
+    ],
+    "sources": [
+      {
+        "label": "Indiana BMV — Driver's License",
+        "url": "https://secure.in.gov/bmv/licenses-permits-ids/learners-permits-and-drivers-licenses-overview/drivers-license/"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "IA",
+    "name": "Iowa",
+    "totalHours": 20,
+    "nightHours": 2,
+    "appliesTo": "Intermediate license, under 18",
+    "notes": [
+      "The night portion is practice after sunset. Approved driver education is a separate requirement.",
+      "Iowa has additional stages and special minor licenses. Check the applicable stage; do not treat an intermediate-license goal as the entire path to a full license."
+    ],
+    "sources": [
+      {
+        "label": "Iowa DOT — Intermediate License",
+        "url": "https://iowadot.gov/drivers-licenses-ids/get-or-renew-drivers-licenses-ids-permits/under-18-permit-license-or-id/intermediate-license"
+      },
+      {
+        "label": "Iowa DOT — Parent's Supervised Driving Program",
+        "url": "https://iowadot.gov/media/14165/download?inline="
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "KS",
+    "name": "Kansas",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Under-17 graduated-license practice",
+    "notes": [
+      "The age-15 restricted route starts with at least 25 supervised hours; the 50-hour affidavit is needed to advance to less restricted privileges.",
+      "Practice is supervised by an eligible licensed adult age 21 or older. Age, farm-permit, driver-education, and permit-duration rules affect the route."
+    ],
+    "sources": [
+      {
+        "label": "Kansas DOR — Teen Driving FAQ",
+        "url": "https://www.ksrevenue.gov/dovteenfaq.html"
+      },
+      {
+        "label": "Kansas DOR — Age-Specific Licensing Routes",
+        "url": "https://www.ksrevenue.gov/dovgdl.html"
+      }
+    ],
+    "reviewedOn": "2026-09-07",
+    "alternativePresets": [
+      {
+        "label": "Age 15 initial restricted-license practice",
+        "totalHours": 25,
+        "nightHours": 0
+      }
+    ]
+  },
+  {
+    "code": "KY",
+    "name": "Kentucky",
+    "totalHours": 60,
+    "nightHours": 10,
+    "appliesTo": "Permit to intermediate license",
+    "notes": [
+      "Practice with a licensed driver age 21 or older in the front passenger seat.",
+      "Before advancing, hold the permit at least 180 days, reach age 16, and have a parent/guardian certify the practice log."
+    ],
+    "sources": [
+      {
+        "label": "Kentucky DRIVE — Graduated Driver Licensing",
+        "url": "https://drive.ky.gov/Drivers/Pages/GDLP.aspx"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "LA",
+    "name": "Louisiana",
+    "totalHours": 50,
+    "nightHours": 15,
+    "appliesTo": "Class E intermediate license",
+    "notes": [
+      "Practice with a licensed parent, guardian, or adult age 21 or older.",
+      "The intermediate-license route has separate age, permit-holding, education, and testing requirements."
+    ],
+    "sources": [
+      {
+        "label": "Louisiana OMV — Class E Intermediate License",
+        "url": "https://expresslane.la.gov/omv/drivers/driver-s-education-information/upgrading-to-a-class-e-intermediate-license/"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "ME",
+    "name": "Maine",
+    "totalHours": 70,
+    "nightHours": 10,
+    "appliesTo": "First license, under 21",
+    "notes": [
+      "Log practice after the learner permit is issued; the night portion is after dark.",
+      "Hold the permit at least six months. Under-18 applicants also need approved driver education; supervising-driver and certification requirements apply."
+    ],
+    "sources": [
+      {
+        "label": "Maine BMV — License Age Restrictions",
+        "url": "https://www.maine.gov/sos/bmv/driver-licenses-and-ids/car-license/license-age-restrictions"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "MD",
+    "name": "Maryland",
+    "totalHours": 60,
+    "nightHours": 10,
+    "appliesTo": "Teen Rookie Driver practice route",
+    "notes": [
+      "These are supervised practice hours, separate from the required driver-education program.",
+      "Age changes the permit-holding rules; applicants age 25 or older have a different practice requirement. Check the MVA age-specific route."
+    ],
+    "sources": [
+      {
+        "label": "Maryland MVA — Provisional License",
+        "url": "https://mva.maryland.gov/your-mva-guide/teens-new-drivers/provisional-license"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "MA",
+    "name": "Massachusetts",
+    "totalHours": 40,
+    "nightHours": null,
+    "appliesTo": "Junior Operator License, under 18",
+    "notes": [
+      "Practice is additional to driver education. A qualifying driver-skills development program can reduce supervised practice to 30 hours.",
+      "No separate night-hour quota is listed. Education includes separate classroom, driving, and observation requirements."
+    ],
+    "sources": [
+      {
+        "label": "Massachusetts RMV — Junior Operator Requirements",
+        "url": "https://www.mass.gov/info-details/junior-operator-license-jol-requirements"
+      }
+    ],
+    "reviewedOn": "2026-09-07",
+    "alternativePresets": [
+      {
+        "label": "Qualifying driver-skills development program",
+        "totalHours": 30,
+        "nightHours": 0
+      }
+    ]
+  },
+  {
+    "code": "MI",
+    "name": "Michigan",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Level 2 graduated license",
+    "notes": [
+      "The practice log must be complete before the driving-skills test.",
+      "Segment 1 and Segment 2 driver education and Level 1 holding requirements also apply; earlier training milestones are not a substitute for the full 50-hour log."
+    ],
+    "sources": [
+      {
+        "label": "Michigan SOS — New Drivers Under 18",
+        "url": "https://www.michigan.gov/sos/license-id/new-drivers-under-18"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "MN",
+    "name": "Minnesota",
+    "totalHours": 50,
+    "nightHours": 15,
+    "appliesTo": "Provisional license, under 18",
+    "notes": [
+      "If a parent/guardian completes the approved 90-minute parent-awareness class, the total drops to 40 hours; the 15 nighttime hours remain.",
+      "Complete the required driver education and submit the supervised-driving log."
+    ],
+    "sources": [
+      {
+        "label": "Minnesota DPS — Graduated Driver's License",
+        "url": "https://dps.mn.gov/divisions/ots/safe-driving-information-and-laws/driving-safety-tips/teen-driving/graduated-dl"
+      }
+    ],
+    "reviewedOn": "2026-09-07",
+    "alternativePresets": [
+      {
+        "label": "Approved parent-awareness class completed",
+        "totalHours": 40,
+        "nightHours": 15
+      }
+    ]
+  },
+  {
+    "code": "MS",
+    "name": "Mississippi",
+    "totalHours": null,
+    "nightHours": null,
+    "appliesTo": "Teen learner/intermediate licensing",
+    "notes": [
+      "No fixed supervised-practice hour minimum is listed in the licensing guidance; IIHS also lists none. The mentor guide's suggested practice schedule is not a statutory hour quota.",
+      "Permit, age, parental certification, and driving restrictions still apply. Keep personal practice goals."
+    ],
+    "sources": [
+      {
+        "label": "Mississippi DPS — Driver License Requirements",
+        "url": "https://driverservicebureau.dps.ms.gov/Drivers/ClassR"
+      },
+      {
+        "label": "IIHS — Graduated Licensing Comparison",
+        "url": "https://www.iihs.org/research-areas/teenagers/graduated-licensing-laws-table"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "MO",
+    "name": "Missouri",
+    "totalHours": 40,
+    "nightHours": 10,
+    "appliesTo": "Intermediate license, ages 16–18",
+    "notes": [
+      "Night practice is between sunset and sunrise. An eligible adult certifies the supervised instruction.",
+      "The permit wait is at least 182 days, beginning the day after issuance. Check age-specific supervisor qualifications."
+    ],
+    "sources": [
+      {
+        "label": "Missouri DOR — Graduated Driver License Law",
+        "url": "https://dor.mo.gov/driver-license/issuance/graduated-driver-license/details.html"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "MT",
+    "name": "Montana",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "First-year restricted license, under 18",
+    "notes": [
+      "Log supervised practice with an eligible adult and hold the learner license at least six months plus one day.",
+      "Driver-training, driving-record, and first-year restrictions also apply."
+    ],
+    "sources": [
+      {
+        "label": "Montana MVD — Drivers Under 18",
+        "url": "https://mvdmt.gov/new-driver-license/drivers-under-18/"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "NE",
+    "name": "Nebraska",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Provisional Operator's Permit, practice route",
+    "notes": [
+      "A DMV-approved driver safety course is an alternative to the 50-hour certification route.",
+      "For the practice route, night hours are between sunset and sunrise. An eligible parent, guardian, or licensed adult age 21 or older signs the certification."
+    ],
+    "sources": [
+      {
+        "label": "Nebraska DMV — Provisional Operator's Permit",
+        "url": "https://dmv.nebraska.gov/node/39"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "NV",
+    "name": "Nevada",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Standard under-18 driver-education route",
+    "notes": [
+      "The limited education exemption requires 100 practice hours, including 10 at night: no classroom course within 30 miles and no internet access.",
+      "Practice with a licensed adult age 21 or older with at least one year of driving experience."
+    ],
+    "sources": [
+      {
+        "label": "Nevada DMV — Driver Education for Teens",
+        "url": "https://dmv.nv.gov/driveeduteens.htm"
+      }
+    ],
+    "reviewedOn": "2026-09-07",
+    "alternativePresets": [
+      {
+        "label": "Qualifying remote-access driver-education exemption",
+        "totalHours": 100,
+        "nightHours": 10
+      }
+    ]
+  },
+  {
+    "code": "NH",
+    "name": "New Hampshire",
+    "totalHours": 40,
+    "nightHours": 10,
+    "appliesTo": "Youth Operator License, under 18",
+    "notes": [
+      "These practice hours are additional to the driver-education course.",
+      "New Hampshire does not issue a standard passenger-car learner permit. Check the manual for minimum practice age, eligible supervisors, and youth-operator restrictions."
+    ],
+    "sources": [
+      {
+        "label": "New Hampshire DMV — Driver Manual",
+        "url": "https://www.dmv.nh.gov/sites/g/files/ehbemt416/files/inline-documents/nhdm.pdf"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "NJ",
+    "name": "New Jersey",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Under-21 permits issued on/after February 1, 2025",
+    "notes": [
+      "The requirement applies to special learner and examination permits issued on or after February 1, 2025; 10 hours must be during darkness.",
+      "Earlier permits follow the prior rules. Certification, supervised-period, age, and probationary-license requirements remain separate."
+    ],
+    "sources": [
+      {
+        "label": "New Jersey MVC — Practice-Hour Requirement",
+        "url": "https://nj.gov/mvc/press/archives/2025/01312025.htm"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "NM",
+    "name": "New Mexico",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Provisional license",
+    "notes": [
+      "Complete the applicable approved driver-education program and generally hold an instruction permit at least six months.",
+      "A documented nighttime-vision condition may qualify for a night-driving exemption; check MVD requirements."
+    ],
+    "sources": [
+      {
+        "label": "New Mexico MVD — Provisional Driver's License",
+        "url": "https://www.mvd.newmexico.gov/chapter-4-provisional-drivers-license/"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "NY",
+    "name": "New York",
+    "totalHours": 50,
+    "nightHours": 15,
+    "appliesTo": "Class DJ junior learner permit",
+    "notes": [
+      "The nighttime requirement is driving after sunset. A parent/guardian signs form MV-262.",
+      "Pre-licensing/driver-education requirements also apply. Supervision and permitted driving vary among New York City, Long Island, and the rest of the state."
+    ],
+    "sources": [
+      {
+        "label": "New York DMV — Pre-Licensing Requirements",
+        "url": "https://dmv.ny.gov/driver-license/complete-pre-licensing-requirements"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "NC",
+    "name": "North Carolina",
+    "totalHours": 60,
+    "nightHours": 10,
+    "appliesTo": "Level 1 learner to Level 2 limited provisional",
+    "notes": [
+      "The Level 1 log is separate from the later Level 2 practice: an additional 12 hours, including 6 at night, is needed for Level 3.",
+      "Level 2 generally requires nine months with the learner permit. Choose the correct stage and its start date. State-specific weekly limits and required forms must still be checked separately; the app does not enforce weekly caps."
+    ],
+    "sources": [
+      {
+        "label": "North Carolina DMV — Level 2 License",
+        "url": "https://www.ncdot.gov/dmv/license-id/driver-licenses/new-drivers/Pages/level2.aspx"
+      },
+      {
+        "label": "North Carolina DMV — Supervised Driving Guide",
+        "url": "https://www.ncdot.gov/dmv/license-id/driver-licenses/new-drivers/Documents/supervised-driving.pdf"
+      }
+    ],
+    "reviewedOn": "2026-09-07",
+    "alternativePresets": [
+      {
+        "label": "Level 2 to Level 3 — additional practice",
+        "totalHours": 12,
+        "nightHours": 6,
+        "requiresStart": true
+      }
+    ]
+  },
+  {
+    "code": "ND",
+    "name": "North Dakota",
+    "totalHours": 50,
+    "nightHours": null,
+    "appliesTo": "Licensing before age 16",
+    "notes": [
+      "Complete 50 hours in varied driving conditions; no separate numerical night quota is listed.",
+      "The age-14/15 route also requires a year with the permit and approved driver education. Ages 16–17 have different requirements."
+    ],
+    "sources": [
+      {
+        "label": "North Dakota DOT — Learner Permit and Age-Based Requirements",
+        "url": "https://www.dot.nd.gov/driver/how-apply-learners-permit"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "OH",
+    "name": "Ohio",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Teen probationary license",
+    "notes": [
+      "The practice hours are in addition to driver education, including its separate classroom and behind-the-wheel instruction.",
+      "Permit-holding, eligible-supervisor, certification, and road-test requirements also apply."
+    ],
+    "sources": [
+      {
+        "label": "Ohio BMV — Graduated Driver Licensing",
+        "url": "https://bmv.ohio.gov/dl-gdl.aspx"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "OK",
+    "name": "Oklahoma",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Intermediate license",
+    "notes": [
+      "The supervising driver must be at least 21 and licensed for at least two years.",
+      "Use the driver-training affidavit and meet the separate learner-permit and conviction-free periods."
+    ],
+    "sources": [
+      {
+        "label": "Service Oklahoma — Intermediate License",
+        "url": "https://oklahoma.gov/service/all-pages/intermediate-license.html"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "OR",
+    "name": "Oregon",
+    "totalHours": 100,
+    "nightHours": null,
+    "appliesTo": "Under-18 license, without approved driver education",
+    "notes": [
+      "Passing an ODOT-approved driver-education course reduces supervised practice to 50 hours. No separate numerical night minimum is listed.",
+      "The supervising driver must have at least three years of licensed experience for practice to count. Keep a personal night goal."
+    ],
+    "sources": [
+      {
+        "label": "Oregon DMV — License Under 18",
+        "url": "https://www.oregon.gov/ODOT/DMV/TEEN/pages/license.aspx"
+      }
+    ],
+    "reviewedOn": "2026-09-07",
+    "alternativePresets": [
+      {
+        "label": "With ODOT-approved driver education",
+        "totalHours": 50,
+        "nightHours": 0
+      }
+    ]
+  },
+  {
+    "code": "PA",
+    "name": "Pennsylvania",
+    "totalHours": 65,
+    "nightHours": 10,
+    "appliesTo": "Junior license, under 18",
+    "notes": [
+      "The 65-hour total must also include at least 5 hours in poor weather. This is an additional condition, not an extra 5 hours on top of 65.",
+      "Hold the learner permit at least six months. Tag qualifying poor-weather practice and review it with the supervising adult."
+    ],
+    "sources": [
+      {
+        "label": "Pennsylvania PennDOT — Get a Driver's License",
+        "url": "https://www.pa.gov/services/dmv/get-a-driver-license"
+      }
+    ],
+    "reviewedOn": "2026-09-07",
+    "poorWeatherHours": 5
+  },
+  {
+    "code": "RI",
+    "name": "Rhode Island",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Limited provisional license, under 18",
+    "notes": [
+      "The night portion is after sunset. A parent/guardian certifies practice with a supervising driver.",
+      "Hold the limited instruction permit at least six months and complete the education and road-test requirements."
+    ],
+    "sources": [
+      {
+        "label": "Rhode Island DMV — New License Permits",
+        "url": "https://dmv.ri.gov/licenses-permits-ids/permits-tests/new-license-permits?language=en"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "SC",
+    "name": "South Carolina",
+    "totalHours": 40,
+    "nightHours": 10,
+    "appliesTo": "Conditional or special restricted teen license",
+    "notes": [
+      "Practice with a qualified licensed supervisor and complete the required driver education.",
+      "Age, permit-holding, school-attendance, and driving restrictions affect which license is available."
+    ],
+    "sources": [
+      {
+        "label": "South Carolina DMV — Teenage Drivers",
+        "url": "https://dmv.sc.gov/Driver-Services/Drivers-License/Teenage-Drivers"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "SD",
+    "name": "South Dakota",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Instruction permit to restricted permit",
+    "notes": [
+      "The 50-hour total also includes 10 hours in inclement weather; a parent/guardian signs the supervised-driving statement.",
+      "Permit-holding periods depend on driver education. Tag qualifying inclement-weather practice and review it with the supervising adult."
+    ],
+    "sources": [
+      {
+        "label": "South Dakota DPS — Teen Drivers",
+        "url": "https://dps.sd.gov/driver-licensing/south-dakota-licensing-information/teen-drivers"
+      }
+    ],
+    "reviewedOn": "2026-09-07",
+    "poorWeatherHours": 10
+  },
+  {
+    "code": "TN",
+    "name": "Tennessee",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Intermediate restricted license",
+    "notes": [
+      "Reach age 16, hold the learner permit at least 180 days, and satisfy driving-record requirements.",
+      "A parent, guardian, or driving instructor signs the 50-hour certification."
+    ],
+    "sources": [
+      {
+        "label": "Tennessee Safety — Teen/Graduated Driver License",
+        "url": "https://www.tn.gov/safety/driver-services/classd/teengdl.html"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "TX",
+    "name": "Texas",
+    "totalHours": 30,
+    "nightHours": 10,
+    "appliesTo": "Teen provisional-license practice component",
+    "notes": [
+      "Only one practice hour per day counts toward this 30-hour requirement. The preset credits the first 60 recorded minutes each calendar day in your saved time zone; additional driving remains in the log.",
+      "The 30 hours are separate from the course's seven driving and seven observation hours. Education, permit-holding, and Impact Texas Teen Drivers requirements also apply."
+    ],
+    "sources": [
+      {
+        "label": "Texas DPS — Provisional License as a Teen",
+        "url": "https://www.dps.texas.gov/section/driver-license/texas-provisional-license-teen"
+      },
+      {
+        "label": "Texas TDLR — 30-Hour Practice Guide",
+        "url": "https://www.tdlr.texas.gov/driver/files/texas%2030-hour%20behind-the-wheel%20guide.pdf"
+      }
+    ],
+    "reviewedOn": "2026-09-07",
+    "maxMinutesPerDay": 60
+  },
+  {
+    "code": "UT",
+    "name": "Utah",
+    "totalHours": 40,
+    "nightHours": 10,
+    "appliesTo": "Under-18 learner-to-license route",
+    "notes": [
+      "The night portion is driving after sunset.",
+      "Driver education, permit-holding, parental responsibility, and age-specific supervision requirements also apply."
+    ],
+    "sources": [
+      {
+        "label": "Utah DLD — Learner Permit",
+        "url": "https://dld.utah.gov/learner-permit/"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "VT",
+    "name": "Vermont",
+    "totalHours": 40,
+    "nightHours": 10,
+    "appliesTo": "Junior Driver's License",
+    "notes": [
+      "These hours are additional to driver education.",
+      "For this requirement, night runs from 30 minutes after sunset until 30 minutes before sunrise. Check permit-holding and certification requirements."
+    ],
+    "sources": [
+      {
+        "label": "Vermont DMV — Junior Driver's License",
+        "url": "https://dmv.vermont.gov/licenses/types-of-licenses-ids/junior-drivers-license"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "VA",
+    "name": "Virginia",
+    "totalHours": 45,
+    "nightHours": 15,
+    "appliesTo": "License applicants under 18",
+    "notes": [
+      "The night portion is driving after sunset and is certified on the driver-education completion certificate.",
+      "Hold the learner permit at least nine months and complete a Virginia-approved driver-education program."
+    ],
+    "sources": [
+      {
+        "label": "Virginia DMV — Driver Education",
+        "url": "https://www.dmv.virginia.gov/licenses-ids/learners/ed-reqs"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "WA",
+    "name": "Washington",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Intermediate license, ages 16–17",
+    "notes": [
+      "Washington specifically requires 40 daylight hours plus 10 nighttime hours, supervised by someone licensed for at least three years.",
+      "The preset keeps daylight and nighttime goals separate. Driver training and at least six months with a learner permit also apply."
+    ],
+    "sources": [
+      {
+        "label": "Washington DOL — License Ages 16–17",
+        "url": "https://dol.wa.gov/driver-licenses-and-permits/get-your-first-license-or-permit/driver-license-application-ages-16-17"
+      }
+    ],
+    "reviewedOn": "2026-09-07",
+    "dayHours": 40
+  },
+  {
+    "code": "WV",
+    "name": "West Virginia",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Level 2 intermediate license",
+    "notes": [
+      "A completed driver-education card is an alternative to the certified 50-hour practice form.",
+      "Separate age, permit-holding, driving-record, and road-skills-test requirements apply."
+    ],
+    "sources": [
+      {
+        "label": "West Virginia DMV — Graduated Licensing Brochure",
+        "url": "https://transportation.wv.gov/DMV/DMVFormSearch/GDL-Brochure-wf.pdf"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "WI",
+    "name": "Wisconsin",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Probationary license, under 18",
+    "notes": [
+      "The current standard is 50 hours, including 10 at night. Permits issued before July 11, 2021 had a different total.",
+      "Approved driver education, at least six months with an instruction permit, and violation-free requirements also apply."
+    ],
+    "sources": [
+      {
+        "label": "Wisconsin DMV — Probationary License Requirements",
+        "url": "https://wisconsindot.gov/Pages/dmv/teen-driver/yr-frst-lcns/drivrlic.aspx"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  },
+  {
+    "code": "WY",
+    "name": "Wyoming",
+    "totalHours": 50,
+    "nightHours": 10,
+    "appliesTo": "Intermediate permit",
+    "notes": [
+      "Provide certification of 50 actual behind-the-wheel hours, including 10 at night.",
+      "Meet the separate age, learner-permit, parental-consent, and road-test requirements. Restricted hardship permits are a different route."
+    ],
+    "sources": [
+      {
+        "label": "Wyoming DOT — Learner and Intermediate Permits",
+        "url": "https://dot.state.wy.us/home/driver_license_records/driver-license/learner-permits.html"
+      }
+    ],
+    "reviewedOn": "2026-09-07"
+  }
+]

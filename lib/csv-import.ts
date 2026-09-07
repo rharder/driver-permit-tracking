@@ -1,6 +1,6 @@
 import Papa from 'papaparse';
 
-export type ImportField = 'driver' | 'date' | 'start' | 'end' | 'duration' | 'period' | 'weather' | 'details' | 'notes';
+export type ImportField = 'driver' | 'date' | 'start' | 'end' | 'duration' | 'period' | 'weather' | 'details' | 'notes' | 'poorWeather' | 'challenging';
 export type CsvMapping = Record<ImportField, number | null>;
 export type ImportDateFormat = 'auto' | 'mdy' | 'dmy' | 'ymd';
 export type ImportDurationUnit = 'auto' | 'minutes' | 'hours';
@@ -29,6 +29,8 @@ export type ImportCandidate = {
   period: 'day' | 'night';
   weather: 'Clear' | 'Cloudy' | 'Rain' | 'Snow' | 'Other';
   notes: string;
+  poorWeather?: boolean;
+  challenging?: boolean;
 };
 
 export type ImportRowResult = {
@@ -53,6 +55,8 @@ export const IMPORT_FIELDS: Array<{ id: ImportField; label: string; detail: stri
   { id: 'duration', label: 'Duration', detail: 'Used when an end time is not available' },
   { id: 'period', label: 'Day or night', detail: 'Optional; a default can be applied' },
   { id: 'weather', label: 'Weather', detail: 'Optional; a default can be applied' },
+  { id: 'poorWeather', label: 'Poor-weather flag', detail: 'Optional yes/no or true/false; blank infers from rain/snow' },
+  { id: 'challenging', label: 'Other challenging conditions', detail: 'Optional yes/no or true/false; separate from automatic night/weather counting' },
   { id: 'details', label: 'Road or skill details', detail: 'Optional; combined into the drive notes' },
   { id: 'notes', label: 'Notes', detail: 'Optional comments or road details' },
 ];
@@ -65,6 +69,8 @@ const BASE_ALIASES: Record<ImportField, string[]> = {
   duration: ['duration', 'minutes', 'mins', 'elapsed', 'elapsed time', 'drive time', 'time driven', 'practice duration', 'total time'],
   period: ['day or night', 'day night', 'day/night', 'time of day', 'lighting', 'night driving', 'daytime nighttime'],
   weather: ['weather', 'conditions', 'weather conditions', 'condition'],
+  poorWeather: ['poor weather', 'inclement weather', 'poor weather flag'],
+  challenging: ['other challenging', 'other challenging conditions', 'challenging flag'],
   details: ['road type', 'road', 'route', 'skills practiced', 'skills', 'practice area', 'driving environment'],
   notes: ['notes', 'note', 'comments', 'comment', 'remarks'],
 };
@@ -174,7 +180,7 @@ export function suggestCsvMapping(parsed: ParsedCsv, presetId = 'auto'): CsvMapp
   const preset = IMPORT_PRESETS.find((item) => item.id === presetId);
   const mapping = Object.fromEntries(IMPORT_FIELDS.map((field) => [field.id, null])) as CsvMapping;
   const used = new Set<number>();
-  const fieldOrder: ImportField[] = ['period', 'weather', 'duration', 'end', 'start', 'date', 'driver', 'details', 'notes'];
+  const fieldOrder: ImportField[] = ['poorWeather', 'challenging', 'period', 'weather', 'duration', 'end', 'start', 'date', 'driver', 'details', 'notes'];
 
   fieldOrder.forEach((field) => {
     const aliases = [...(preset?.aliases?.[field] ?? []), ...BASE_ALIASES[field]];
@@ -184,7 +190,9 @@ export function suggestCsvMapping(parsed: ParsedCsv, presetId = 'auto'): CsvMapp
       if (used.has(index)) return;
       const values = parsed.rows.map((row) => row[index] ?? '');
       const preferredNotesHeader = field === 'notes' && normalized(header) === 'notes' ? 20 : 0;
-      const score = headerScore(header, aliases) + sampleScore(field, values) + preferredNotesHeader;
+      // Boolean condition columns must be named explicitly, not guessed from generic weather headings.
+      const flagField = field === 'poorWeather' || field === 'challenging';
+      const score = flagField ? (aliases.some(alias => normalized(alias) === normalized(header)) ? 100 : 0) : headerScore(header, aliases) + sampleScore(field, values) + preferredNotesHeader;
       if (score > bestScore) {
         bestIndex = index;
         bestScore = score;
@@ -249,6 +257,11 @@ function includesDate(value: string) {
 
 function parseDateTime(dateValue: string, timeOrDateTime: string, format: ImportDateFormat, fallbackTime = '') {
   const source = timeOrDateTime.trim();
+  // Preserve the absolute timestamps (including seconds/offsets) from our own exports.
+  if (/^\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:?\d{2})$/i.test(source)) {
+    const instant = new Date(source);
+    return Number.isFinite(instant.getTime()) ? instant : null;
+  }
   if (source && includesDate(source)) {
     const split = source.match(/^(.*?\d{1,4})(?:[T,\s]+)(.+)$/);
     if (split) return buildLocalDate(split[1], split[2], format);
@@ -290,7 +303,7 @@ function normalizeWeather(value: string, fallback: ImportOptions['defaultWeather
 }
 
 export function normalizeCsvRows(parsed: ParsedCsv, mapping: CsvMapping, options: ImportOptions): ImportRowResult[] {
-  const value = (row: string[], field: ImportField) => mapping[field] === null ? '' : row[mapping[field]!] ?? '';
+  const value = (row: string[], field: ImportField) => mapping[field] == null ? '' : row[mapping[field]!] ?? '';
   return parsed.rows.map((row, index) => {
     const sourceRow = index + 2;
     const driverName = value(row, 'driver').trim() || options.defaultDriver.trim();
@@ -312,6 +325,15 @@ export function normalizeCsvRows(parsed: ParsedCsv, mapping: CsvMapping, options
     }
     if (end <= start || end.getTime() - start.getTime() > 86_400_000) return { sourceRow, candidate: null, error: 'The end time must be after the start and within 24 hours.' };
 
+    const parseFlag = (raw: string) => {
+      if (!raw.trim()) return undefined;
+      if (/^(true|yes|1)$/i.test(raw.trim())) return true;
+      if (/^(false|no|0)$/i.test(raw.trim())) return false;
+      return 'invalid';
+    };
+    const poorWeather = parseFlag(value(row, 'poorWeather'));
+    const challenging = parseFlag(value(row, 'challenging'));
+    if (poorWeather === 'invalid' || challenging === 'invalid') return { sourceRow, candidate: null, error: 'Condition flags must be blank, yes/no, true/false, or 1/0.' };
     const candidate: ImportCandidate = {
       sourceRow,
       driverName,
@@ -320,6 +342,8 @@ export function normalizeCsvRows(parsed: ParsedCsv, mapping: CsvMapping, options
       period: normalizePeriod(value(row, 'period'), options.defaultPeriod),
       weather: normalizeWeather(value(row, 'weather'), options.defaultWeather),
       notes: [value(row, 'notes').trim(), value(row, 'details').trim()].filter(Boolean).join(' · '),
+      ...(poorWeather !== undefined ? { poorWeather } : {}),
+      ...(challenging !== undefined ? { challenging } : {}),
     };
     return { sourceRow, candidate, error: '' };
   });

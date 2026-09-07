@@ -1,4 +1,4 @@
-const CACHE_NAME = 'permit-hours-v5';
+const CACHE_NAME = 'permit-hours-v6';
 const APP_SHELL = ['./', './manifest.webmanifest?v=2', './favicon.svg', './icon.svg', './pdf.min.mjs', './pdf.worker.min.mjs'];
 const MANIFEST_URL = new URL('./manifest.webmanifest', self.registration.scope);
 

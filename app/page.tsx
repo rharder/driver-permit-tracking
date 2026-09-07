@@ -59,6 +59,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { FamilyMemberRow } from '@/components/family-member-row';
+import { StateRequirementsDialog } from '@/components/state-requirements-dialog';
+import { ConditionFields, PracticeGoalFields } from '@/components/practice-goal-fields';
+import { calculatePractice, countingDescription, isPoorWeather, practiceError, validConditionFlags, type PracticeSettings } from '@/lib/practice-goals';
 import { useFirebaseSync, type FamilyRole } from '@/lib/firebase-sync';
 import {
   IMPORT_FIELDS,
@@ -88,6 +91,7 @@ type Driver = {
   legalName?: string;
   totalGoal: number;
   nightGoal: number;
+  practice?: PracticeSettings;
 };
 
 type DriveSession = {
@@ -100,6 +104,8 @@ type DriveSession = {
   notes: string;
   importBatchId?: string;
   importSource?: string;
+  poorWeather?: boolean;
+  challenging?: boolean;
 };
 
 type ActiveDrive = {
@@ -107,6 +113,8 @@ type ActiveDrive = {
   start: string;
   period: Period;
   weather: Weather;
+  poorWeather?: boolean;
+  challenging?: boolean;
 };
 
 type AppData = {
@@ -127,6 +135,8 @@ type SessionDraft = {
   period: Period;
   weather: Weather;
   notes: string;
+  poorWeather?: boolean;
+  challenging?: boolean;
 };
 
 type CsvImportPreview = {
@@ -224,11 +234,6 @@ function weatherIcon(weather: Weather, size = 17) {
   return <Sun size={size} />;
 }
 
-function percent(value: number, goalHours: number) {
-  if (goalHours <= 0) return 0;
-  return Math.min(100, Math.round((value / (goalHours * 3_600_000)) * 100));
-}
-
 function downloadFile(name: string, body: string, type: string) {
   const url = URL.createObjectURL(new Blob([body], { type }));
   const anchor = document.createElement('a');
@@ -264,7 +269,7 @@ function parseJsonBackup(text: string): AppData {
   const drivers = value.drivers.map((driver) => {
     if (!driver || typeof driver.id !== 'string' || typeof driver.name !== 'string' || !driver.name.trim()
       || (driver.legalName !== undefined && typeof driver.legalName !== 'string')
-      || !Number.isFinite(driver.totalGoal) || !Number.isFinite(driver.nightGoal)) {
+      || practiceError(driver)) {
       throw new Error('The JSON backup contains an invalid driver.');
     }
     return { ...driver, name: driver.name.trim(), legalName: driver.legalName?.trim() || undefined };
@@ -278,7 +283,7 @@ function parseJsonBackup(text: string): AppData {
       || new Date(session.end) <= new Date(session.start)
       || !['day', 'night'].includes(session.period)
       || !weatherOptions.includes(session.weather)
-      || typeof session.notes !== 'string') {
+      || typeof session.notes !== 'string' || !validConditionFlags(session)) {
       throw new Error('The JSON backup contains an invalid drive entry.');
     }
     return session;
@@ -287,7 +292,7 @@ function parseJsonBackup(text: string): AppData {
   let active: ActiveDrive | null = null;
   if (value.active) {
     if (!driverIds.has(value.active.driverId) || !isDateString(value.active.start)
-      || !['day', 'night'].includes(value.active.period) || !weatherOptions.includes(value.active.weather)) {
+      || !['day', 'night'].includes(value.active.period) || !weatherOptions.includes(value.active.weather) || !validConditionFlags(value.active)) {
       throw new Error('The JSON backup contains an invalid active drive.');
     }
     active = value.active;
@@ -307,6 +312,9 @@ export default function Home() {
   const [ready, setReady] = useState(false);
   const [period, setPeriod] = useState<Period>('day');
   const [weather, setWeather] = useState<Weather>('Clear');
+  const [conditions, setConditions] = useState<{ poorWeather?: boolean; challenging?: boolean }>({});
+  const [stateLookupOpen, setStateLookupOpen] = useState(false);
+  const [lookupReturnsToDriver, setLookupReturnsToDriver] = useState(false);
   const [revealedWeather, setRevealedWeather] = useState<{ value: Weather } | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [online, setOnline] = useState(true);
@@ -384,7 +392,8 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, [revealedWeather]);
 
-  const shareableData = useMemo(() => ({ ...data, selectedId: null }), [data]);
+  // Match local/backup JSON semantics: Firestore rejects optional properties set to undefined.
+  const shareableData = useMemo(() => JSON.parse(JSON.stringify({ ...data, selectedId: null })) as AppData, [data]);
   const acceptCloudData = useCallback((remote: AppData) => {
     setData((current) => ({
       ...remote,
@@ -405,12 +414,12 @@ export default function Home() {
   const printableSessions = useMemo(() => [...driverSessions].sort((a, b) => a.start.localeCompare(b.start)), [driverSessions]);
   const totalTime = driverSessions.reduce((sum, session) => sum + durationMs(session), 0);
   const nightTime = driverSessions.filter((session) => session.period === 'night').reduce((sum, session) => sum + durationMs(session), 0);
-  const totalPercent = selected ? percent(totalTime, selected.totalGoal) : 0;
-  const nightPercent = selected ? percent(nightTime, selected.nightGoal) : 0;
+  const progress = useMemo(() => calculatePractice(driverSessions, selected ?? { totalGoal: 50, nightGoal: 10 }), [driverSessions, selected]);
   const liveDuration = data.active ? now - new Date(data.active.start).getTime() : 0;
 
   function selectWeather(option: Weather) {
     setWeather(option);
+    setConditions(current => ({ ...current, poorWeather: undefined }));
     setRevealedWeather({ value: option });
   }
 
@@ -437,12 +446,20 @@ export default function Home() {
     setDriverDialogOpen(true);
   }
 
+  function openStateLookup(fromDriver = false) {
+    setLookupReturnsToDriver(fromDriver);
+    if (fromDriver) setDriverDialogOpen(false);
+    setStateLookupOpen(true);
+  }
+
   function saveDriver(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (readOnly) return setNotice('This account has view-only access.');
     const name = driverDraft.name.trim();
     const legalName = driverDraft.legalName?.trim() || undefined;
     if (!name) return;
+    const error = practiceError(driverDraft);
+    if (error) return setNotice(error);
     if (driverDraft.id) {
       setData({ ...data, drivers: data.drivers.map((driver) => driver.id === driverDraft.id ? { ...driverDraft, name, legalName } : driver) });
       setNotice('Driver details updated.');
@@ -472,9 +489,10 @@ export default function Home() {
   function startDrive() {
     if (readOnly) return setNotice('This account has view-only access.');
     if (!selected || data.active) return;
-    const active = { driverId: selected.id, start: new Date().toISOString(), period, weather };
+    const active = { driverId: selected.id, start: new Date().toISOString(), period, weather, ...conditions };
     setNow(Date.now());
     setData({ ...data, active });
+    setConditions({});
   }
 
   function stopDrive() {
@@ -487,6 +505,8 @@ export default function Home() {
       end: new Date().toISOString(),
       period: data.active.period,
       weather: data.active.weather,
+      poorWeather: data.active.poorWeather,
+      challenging: data.active.challenging,
       notes: '',
     };
     setData({ ...data, active: null, sessions: [...data.sessions, session], selectedId: session.driverId });
@@ -506,6 +526,7 @@ export default function Home() {
       timeSource: 'duration',
       period,
       weather,
+      ...conditions,
       notes: '',
     });
     setSessionDialogOpen(true);
@@ -525,6 +546,8 @@ export default function Home() {
       period: session.period,
       weather: session.weather,
       notes: session.notes,
+      poorWeather: session.poorWeather,
+      challenging: session.challenging,
     });
     setSessionDialogOpen(true);
   }
@@ -563,6 +586,7 @@ export default function Home() {
     const end = new Date(`${sessionDraft.date}T${sessionDraft.endTime}`);
     if (end <= start) end.setDate(end.getDate() + 1);
     const session: DriveSession = {
+      ...data.sessions.find(item => item.id === sessionDraft.id),
       id: sessionDraft.id ?? id(),
       driverId: selected.id,
       start: start.toISOString(),
@@ -570,6 +594,8 @@ export default function Home() {
       period: sessionDraft.period,
       weather: sessionDraft.weather,
       notes: sessionDraft.notes.trim(),
+      poorWeather: sessionDraft.poorWeather,
+      challenging: sessionDraft.challenging,
     };
     setData({
       ...data,
@@ -594,10 +620,10 @@ export default function Home() {
   }
 
   function exportCsv() {
-    const header = ['driver', 'start', 'end', 'minutes', 'day_or_night', 'weather', 'notes'];
+    const header = ['driver', 'start', 'end', 'minutes', 'day_or_night', 'weather', 'notes', 'poor_weather', 'other_challenging'];
     const rows = data.sessions.map((session) => {
       const driver = data.drivers.find((item) => item.id === session.driverId);
-      return [driver?.name ?? 'Unknown', session.start, session.end, Math.round(durationMs(session) / 60_000), session.period, session.weather, session.notes];
+      return [driver?.name ?? 'Unknown', session.start, session.end, Math.round(durationMs(session) / 60_000), session.period, session.weather, session.notes, session.poorWeather === undefined ? '' : String(session.poorWeather), session.challenging === undefined ? '' : String(session.challenging)];
     });
     const csv = [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\n');
     downloadFile(`permit-hours-${dateInputValue(new Date())}.csv`, csv, 'text/csv;charset=utf-8');
@@ -723,6 +749,8 @@ export default function Home() {
         period: candidate.period,
         weather: candidate.weather,
         notes: candidate.notes,
+        poorWeather: candidate.poorWeather,
+        challenging: candidate.challenging,
         importBatchId: batchId,
         importSource: csvImport.fileName,
       };
@@ -919,6 +947,7 @@ export default function Home() {
             </form>
           )}
           <div className="default-note"><Check size={16} /> Starts with Colorado’s default goals: 50 hours total, including 10 at night.</div>
+          <Button type="button" variant="link" onClick={() => openStateLookup()}>Look up another state’s requirements</Button>
         </section>
       ) : (
         <>
@@ -993,6 +1022,7 @@ export default function Home() {
                         </button>
                       ))}
                     </div>
+                    {Boolean(selected?.practice?.poorWeatherGoal || selected?.practice?.challengingGoal) && <ConditionFields value={{ weather, ...conditions }} onChange={patch => setConditions(current => ({ ...current, ...patch }))} showChallenge={Boolean(selected?.practice?.challengingGoal)} />}
                   </div>
                   <button className="start-button" type="button" onClick={startDrive} aria-label="Start drive">
                     <span className="start-icon">▶</span>
@@ -1008,15 +1038,17 @@ export default function Home() {
               <div className="section-heading">
                 <div>
                   <p className="eyebrow">Driving goals</p>
-                  <h2>{totalPercent}% complete</h2>
+                  <h2>{progress.percent}% complete</h2>
                 </div>
                 {selected && !readOnly && <button type="button" onClick={() => openEditDriver(selected)} aria-label="Edit driver and goals"><Settings2 size={19} /></button>}
               </div>
-              <GoalCard icon={<CarFront size={20} />} label="Total time" value={totalTime} goal={selected?.totalGoal ?? 50} progress={totalPercent} />
-              <GoalCard icon={<Moon size={20} />} label="Night time" value={nightTime} goal={selected?.nightGoal ?? 10} progress={nightPercent} night />
+              <Button type="button" variant="link" className="state-lookup-link" onClick={() => openStateLookup()}>State requirements & presets</Button>
+              {selected?.practice && <p className="counting-note">{countingDescription(selected.practice)}. Goals below are editable; verify current rules.</p>}
+              {progress.goals.map(goal => <GoalCard key={goal.key} icon={goal.key === 'night' ? <Moon size={20} /> : goal.key === 'poorWeather' ? <CloudRain size={20} /> : goal.key === 'day' ? <Sun size={20} /> : goal.key === 'challenging' ? <ShieldCheck size={20} /> : <CarFront size={20} />} label={goal.label} value={goal.value} goal={goal.hours} progress={goal.percent} night={goal.key === 'night'} />)}
+              {totalTime > progress.counted.total && <p className="counting-note">{formatDuration(totalTime)} recorded overall · {formatDuration(progress.counted.total)} counted toward these goals. Full drives remain in history.</p>}
               <div className="encouragement">
                 <Sun size={19} />
-                <p><strong>{totalPercent >= 100 ? 'Goal reached!' : 'Keep it rolling.'}</strong> {totalPercent >= 100 ? 'You’ve completed the total-time goal.' : `${formatDuration(Math.max(0, (selected?.totalGoal ?? 50) * 3_600_000 - totalTime))} left to reach the total goal.`}</p>
+                <p><strong>{progress.complete ? 'Practice goals reached!' : 'Keep it rolling.'}</strong> {progress.complete ? 'Review your log and state requirements before applying.' : 'Overall completion follows your least-complete goal, including any required conditions.'}</p>
               </div>
               <div className="privacy-note">{cloud.state.user ? <Cloud size={16} /> : <Download size={16} />}<p><strong>{cloud.state.user ? 'Offline-safe cloud sync.' : 'Stored on this device.'}</strong> {cloud.state.user ? 'Changes save locally first and sync when a connection is available.' : 'Sign in to sync with your family, or export a backup.'}</p></div>
             </aside>
@@ -1039,6 +1071,7 @@ export default function Home() {
                     <strong className="session-duration">{formatDuration(durationMs(session))}</strong>
                     {!readOnly && <div className="session-actions"><button type="button" onClick={() => openEditSession(session)} aria-label="Edit drive"><Pencil size={16} /></button><button type="button" onClick={() => setSessionToDelete(session)} aria-label="Delete drive"><Trash2 size={16} /></button></div>}
                     {session.notes && <p className="session-notes">{session.notes}</p>}
+                    {(isPoorWeather(session) || session.challenging || (progress.creditedById[session.id] ?? 0) < durationMs(session)) && <p className="session-notes condition-note">{[isPoorWeather(session) ? 'Poor weather' : '', session.challenging ? 'Other challenging conditions' : '', (progress.creditedById[session.id] ?? 0) < durationMs(session) ? `${formatDuration(progress.creditedById[session.id] ?? 0)} counted toward current goals` : ''].filter(Boolean).join(' · ')}</p>}
                   </article>
                 ))}
               </div>
@@ -1055,6 +1088,14 @@ export default function Home() {
       />}
 
       {notice && <output className="toast"><Check size={17} /> {notice}</output>}
+
+      {stateLookupOpen && <StateRequirementsDialog initialState={(lookupReturnsToDriver ? driverDraft : selected)?.practice?.stateCode} onClose={() => {
+        setStateLookupOpen(false);
+        if (lookupReturnsToDriver) setDriverDialogOpen(true);
+      }} onApply={readOnly ? undefined : goals => {
+        setDriverDraft({ ...(lookupReturnsToDriver ? driverDraft : selected ?? { id: '', name: newName, legalName: '' }), ...goals });
+        setDriverDialogOpen(true);
+      }} />}
 
       <AlertDialog open={Boolean(sessionToDelete)} onOpenChange={(open) => { if (!open) setSessionToDelete(null); }}>
         <AlertDialogContent className="permit-alert">
@@ -1235,24 +1276,27 @@ export default function Home() {
       </Dialog>
 
       <Dialog open={driverDialogOpen} onOpenChange={setDriverDialogOpen}>
-        <DialogContent className="permit-dialog sm:max-w-md">
+        <DialogContent className="permit-dialog scroll-dialog sm:max-w-lg">
           <DialogHeader><DialogTitle>{driverDraft.id ? 'Driver settings' : 'Add a driver'}</DialogTitle><DialogDescription>Choose the name shown in the app and the legal name used on signed reports.</DialogDescription></DialogHeader>
-          <form id="driver-form" onSubmit={saveDriver} className="dialog-form">
+          <form id="driver-form" onSubmit={saveDriver} className="dialog-form scroll-dialog-body">
             <label htmlFor="driver-name">Name used in the app<Input id="driver-name" value={driverDraft.name} onChange={(event) => setDriverDraft({ ...driverDraft, name: event.target.value })} placeholder="First name or nickname" required /><small className="field-help">This is the short name shown when switching drivers.</small></label>
             <label htmlFor="driver-legal-name">Full legal name <span>(optional)</span><Input id="driver-legal-name" value={driverDraft.legalName ?? ''} onChange={(event) => setDriverDraft({ ...driverDraft, legalName: event.target.value })} placeholder="First, middle, and last name" autoComplete="off" /><small className="field-help">Used on the printable supervised driving log. Until added, the app name is used.</small></label>
-            <div className="form-grid"><label htmlFor="total-goal">Total hours goal<Input id="total-goal" type="number" min="1" step="1" value={driverDraft.totalGoal} onChange={(event) => setDriverDraft({ ...driverDraft, totalGoal: Number(event.target.value) })} required /></label><label htmlFor="night-goal">Night hours goal<Input id="night-goal" type="number" min="0" step="1" value={driverDraft.nightGoal} onChange={(event) => setDriverDraft({ ...driverDraft, nightGoal: Number(event.target.value) })} required /></label></div>
+            <Button type="button" variant="outline" onClick={() => openStateLookup(true)}>Look up state requirements</Button>
+            <div className="form-grid"><label htmlFor="total-goal">Total hours goal<Input id="total-goal" type="number" min="0.25" step="0.25" value={driverDraft.totalGoal} onChange={(event) => setDriverDraft({ ...driverDraft, totalGoal: Number(event.target.value) })} required /></label><label htmlFor="night-goal">Night hours goal<Input id="night-goal" type="number" min="0" step="0.25" value={driverDraft.nightGoal} onChange={(event) => setDriverDraft({ ...driverDraft, nightGoal: Number(event.target.value) })} required /></label></div>
+            <PracticeGoalFields driver={driverDraft} onChange={practice => setDriverDraft({ ...driverDraft, practice })} />
+            {practiceError(driverDraft) && <p role="alert" className="field-error">{practiceError(driverDraft)}</p>}
           </form>
           <DialogFooter className="permit-dialog-footer">
             {driverDraft.id && <Button variant="destructive" type="button" onClick={removeDriver}><Trash2 /> Delete</Button>}
-            <div><Button variant="outline" type="button" onClick={() => setDriverDialogOpen(false)}>Cancel</Button><Button type="submit" form="driver-form">Save driver</Button></div>
+            <div><Button variant="outline" type="button" onClick={() => setDriverDialogOpen(false)}>Cancel</Button><Button type="submit" form="driver-form" disabled={Boolean(practiceError(driverDraft))}>Save driver</Button></div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={sessionDialogOpen} onOpenChange={setSessionDialogOpen}>
-        <DialogContent className="permit-dialog sm:max-w-lg">
+        <DialogContent className="permit-dialog scroll-dialog sm:max-w-lg">
           <DialogHeader><DialogTitle>{sessionDraft?.id ? 'Edit drive' : 'Add a drive'}</DialogTitle><DialogDescription>Enter an end time or a duration—the other value updates automatically.</DialogDescription></DialogHeader>
-          {sessionDraft && <form id="session-form" onSubmit={saveSession} className="dialog-form">
+          {sessionDraft && <form id="session-form" onSubmit={saveSession} className="dialog-form scroll-dialog-body">
             <label htmlFor="drive-date">Date<Input id="drive-date" type="date" value={sessionDraft.date} onChange={(event) => setSessionDraft({ ...sessionDraft, date: event.target.value })} required /></label>
             <div className="time-entry-grid">
               <label htmlFor="drive-start">Started<Input id="drive-start" type="time" value={sessionDraft.startTime} onChange={(event) => updateSessionStartTime(event.target.value)} required /></label>
@@ -1260,7 +1304,8 @@ export default function Home() {
               <label htmlFor="drive-duration">Duration<span className="duration-input"><Input id="drive-duration" type="number" inputMode="numeric" min="1" max="1440" step="1" value={sessionDraft.durationMinutes} onChange={(event) => updateSessionDuration(event.target.value)} required /><span aria-hidden="true">min</span></span></label>
             </div>
             <p className="duration-summary" aria-live="polite"><Clock3 size={15} /><span>Calculated drive time: <strong>{formatDuration(Number(sessionDraft.durationMinutes || 0) * 60_000)}</strong>{endsNextDay(sessionDraft.startTime, sessionDraft.endTime) ? ' · ends the next day' : ''}</span></p>
-            <div className="form-grid"><label htmlFor="drive-period">Time of day<select id="drive-period" value={sessionDraft.period} onChange={(event) => setSessionDraft({ ...sessionDraft, period: event.target.value as Period })}><option value="day">Day</option><option value="night">Night</option></select></label><label htmlFor="drive-weather">Weather<select id="drive-weather" value={sessionDraft.weather} onChange={(event) => setSessionDraft({ ...sessionDraft, weather: event.target.value as Weather })}>{weatherOptions.map((option) => <option key={option}>{option}</option>)}</select></label></div>
+            <div className="form-grid"><label htmlFor="drive-period">Time of day<select id="drive-period" value={sessionDraft.period} onChange={(event) => setSessionDraft({ ...sessionDraft, period: event.target.value as Period })}><option value="day">Day</option><option value="night">Night</option></select></label><label htmlFor="drive-weather">Weather<select id="drive-weather" value={sessionDraft.weather} onChange={(event) => setSessionDraft({ ...sessionDraft, weather: event.target.value as Weather, poorWeather: undefined })}>{weatherOptions.map((option) => <option key={option}>{option}</option>)}</select></label></div>
+            <ConditionFields value={sessionDraft} onChange={patch => setSessionDraft({ ...sessionDraft, ...patch })} />
             <label htmlFor="drive-notes">Notes <span>(optional)</span><textarea id="drive-notes" rows={3} value={sessionDraft.notes} onChange={(event) => setSessionDraft({ ...sessionDraft, notes: event.target.value })} placeholder="Highway practice, parking, rain…" /></label>
           </form>}
           <DialogFooter><Button variant="outline" type="button" onClick={() => setSessionDialogOpen(false)}>Cancel</Button><Button type="submit" form="session-form">Save drive</Button></DialogFooter>
@@ -1277,6 +1322,7 @@ function PrintableReport({ driver, sessions, totalTime, nightTime }: {
   nightTime: number;
 }) {
   const daytimeTime = Math.max(0, totalTime - nightTime);
+  const progress = calculatePractice(sessions, driver);
   return (
     <section className="print-report">
       <header className="print-header">
@@ -1292,12 +1338,19 @@ function PrintableReport({ driver, sessions, totalTime, nightTime }: {
 
       <div className="print-totals" aria-label="Driving totals and goals">
         <div><span>Daytime</span><strong>{formatDuration(daytimeTime)}</strong></div>
-        <div><span>Nighttime</span><strong>{formatDuration(nightTime)}</strong><small>Goal {driver.nightGoal}h</small></div>
-        <div><span>Total driving</span><strong>{formatDuration(totalTime)}</strong><small>Goal {driver.totalGoal}h</small></div>
+        <div><span>Nighttime</span><strong>{formatDuration(nightTime)}</strong></div>
+        <div><span>Total recorded</span><strong>{formatDuration(totalTime)}</strong></div>
       </div>
 
+      <section className="print-goal-summary">
+        <h2>Counted toward current practice goals</h2>
+        <p>{countingDescription(driver.practice)}. Goals are user-configurable; this is not a determination of license eligibility.</p>
+        <p>{progress.goals.map(goal => `${goal.label}: ${formatDuration(goal.value)} / ${goal.hours}h`).join(' · ')}</p>
+        {(driver.practice?.poorWeatherGoal || driver.practice?.challengingGoal) ? <p>Condition hours are included in the total. Challenging conditions count night OR poor weather OR a marked other challenge, without double-counting the same practice.</p> : null}
+      </section>
+
       <table className="print-log-table">
-        <caption>Detailed practice log</caption>
+        <caption>Detailed practice log — all recorded driving, before counting limits</caption>
         <thead><tr><th>Date</th><th>Start–end</th><th>Day</th><th>Night</th><th>Weather</th><th>Notes</th></tr></thead>
         <tbody>
           {sessions.length ? sessions.map((session) => {
@@ -1311,7 +1364,7 @@ function PrintableReport({ driver, sessions, totalTime, nightTime }: {
               <td>{session.period === 'day' ? duration : '—'}</td>
               <td>{session.period === 'night' ? duration : '—'}</td>
               <td>{session.weather}</td>
-              <td>{session.notes || '—'}</td>
+              <td>{[session.notes, isPoorWeather(session) ? 'Poor weather' : '', session.challenging ? 'Other challenging conditions' : '', (progress.creditedById[session.id] ?? 0) < durationMs(session) ? `${formatDuration(progress.creditedById[session.id] ?? 0)} counted for current goals` : ''].filter(Boolean).join(' · ') || '—'}</td>
             </tr>;
           }) : <tr><td colSpan={6} className="print-empty">No completed drives are recorded.</td></tr>}
         </tbody>
