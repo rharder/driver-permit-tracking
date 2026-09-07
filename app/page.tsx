@@ -59,6 +59,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { FamilyMemberRow } from '@/components/family-member-row';
+import { Feedback } from '@/components/feedback';
 import { StateRequirementsDialog } from '@/components/state-requirements-dialog';
 import { ConditionFields, PracticeGoalFields } from '@/components/practice-goal-fields';
 import { calculatePractice, countingDescription, isPoorWeather, practiceError, validConditionFlags, type PracticeSettings } from '@/lib/practice-goals';
@@ -948,6 +949,7 @@ export default function Home() {
           )}
           <div className="default-note"><Check size={16} /> Starts with Colorado’s default goals: 50 hours total, including 10 at night.</div>
           <Button type="button" variant="link" onClick={() => openStateLookup()}>Look up another state’s requirements</Button>
+          <Feedback online={online} />
         </section>
       ) : (
         <>
@@ -1051,6 +1053,7 @@ export default function Home() {
                 <p><strong>{progress.complete ? 'Practice goals reached!' : 'Keep it rolling.'}</strong> {progress.complete ? 'Review your log and state requirements before applying.' : 'Overall completion follows your least-complete goal, including any required conditions.'}</p>
               </div>
               <div className="privacy-note">{cloud.state.user ? <Cloud size={16} /> : <Download size={16} />}<p><strong>{cloud.state.user ? 'Offline-safe cloud sync.' : 'Stored on this device.'}</strong> {cloud.state.user ? 'Changes save locally first and sync when a connection is available.' : 'Sign in to sync with your family, or export a backup.'}</p></div>
+              <Feedback online={online} />
             </aside>
           </div>
 

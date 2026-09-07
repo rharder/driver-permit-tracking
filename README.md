@@ -63,3 +63,11 @@ Adding access requires an internet connection; copying invitations for existing 
 Driving data is always stored in the browser first. When signed in, Firestore also keeps a persistent local cache and
 automatically sends queued changes after connectivity returns. Export JSON regularly as an additional backup, especially
 before clearing browser storage.
+
+## Feedback
+
+Choose **Feedback** beneath Driving Goals (or on the initial setup screen) to open a new issue or browse
+[existing feedback](https://github.com/rharder/driver-permit-tracking/issues). Use it for bugs, ideas, and questions.
+Posting requires a GitHub account and an internet connection; browsing does not require an account. Issues are public.
+The app provides generic writing prompts but never automatically attaches account details or driving data. Remove personal
+information from descriptions and screenshots before posting. Feedback is not queued while offline.
