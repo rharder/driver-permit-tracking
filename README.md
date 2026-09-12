@@ -60,6 +60,22 @@ Adding access requires an internet connection; copying invitations for existing 
 
 ## Data and privacy
 
+### Starting with weak or no signal
+
+After a successful first load, the app opens its cached copy immediately—even if a network request is hanging.
+It reads your saved log on the device first and syncs separately in the background. A signal indicator alone never
+means the family log is synced: that status requires a server-backed snapshot or an acknowledged upload.
+
+App updates download in the background. The cached page is replaced only after its required scripts and styles are
+fully cached; failed or stalled downloads leave the last working copy intact. The updated app is used on a later
+open/reload, never by interrupting an active drive. PDF import files are cached separately and do not delay startup.
+
+Open the app once with a working connection to install the offline copy (and to receive this startup improvement).
+A new browser or a device whose browser storage was cleared needs another successful load. Keep JSON backups;
+browser storage can be evicted by the operating system. Do not clear website data as a connection troubleshooting step.
+
+### Saved driving data
+
 Driving data is always stored in the browser first. When signed in, Firestore also keeps a persistent local cache and
 automatically sends queued changes after connectivity returns. Export JSON regularly as an additional backup, especially
 before clearing browser storage.

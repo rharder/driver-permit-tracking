@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { matchesPendingUpload, snapshotSyncStatus } from './sync-status';
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import {
   GoogleAuthProvider,
@@ -16,7 +17,6 @@ import {
 } from 'firebase/auth';
 import {
   doc,
-  getDoc,
   getFirestore,
   initializeFirestore,
   onSnapshot,
@@ -40,6 +40,7 @@ const firebaseConfig = {
 const FAMILY_COLLECTION = 'permitHourFamilies';
 const ACCESS_COLLECTION = 'permitHourAccess';
 const ACCESS_CACHE_KEY = 'permit-hours-cloud-access-v2';
+const PENDING_UPLOAD_KEY = 'permit-hours-pending-upload-v1';
 
 export type FamilyRole = 'owner' | 'supervisor' | 'viewer';
 export type SyncStatus = 'local' | 'connecting' | 'setup' | 'saving' | 'synced' | 'offline' | 'unapproved' | 'error';
@@ -113,6 +114,22 @@ function cacheAccess(user: User, access: AccessDocument) {
   localStorage.setItem(ACCESS_CACHE_KEY, JSON.stringify({ ...access, uid: user.uid, savedAt: Date.now() }));
 }
 
+function hasPendingUpload(uid: string, familyId: string, payloadJson: string) {
+  try { return matchesPendingUpload(localStorage.getItem(PENDING_UPLOAD_KEY), uid, familyId, payloadJson); }
+  catch { return false; }
+}
+
+function rememberPendingUpload(uid: string, familyId: string, payloadJson: string) {
+  try { localStorage.setItem(PENDING_UPLOAD_KEY, JSON.stringify({ uid, familyId, payloadJson })); }
+  catch { /* The primary log is saved separately; still try Firestore's persistent queue. */ }
+}
+
+function acknowledgeUpload(uid: string, familyId: string, payloadJson: string) {
+  try {
+    if (hasPendingUpload(uid, familyId, payloadJson)) localStorage.removeItem(PENDING_UPLOAD_KEY);
+  } catch { /* Keeping an acknowledged marker is safe; it will retry the same payload. */ }
+}
+
 function getDatabase(): Firestore {
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
   try {
@@ -134,6 +151,8 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
   const lastCloudPayloadRef = useRef('');
   const saveTimerRef = useRef<number | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const lastLocalPayloadRef = useRef('');
+  const localDirtyRef = useRef(false);
 
   const updateState = useCallback((update: Partial<CloudSyncState>) => {
     setState((current) => ({ ...current, ...update }));
@@ -147,9 +166,10 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
       familyRef,
       { includeMetadataChanges: true },
       (snapshot) => {
+        if (userRef.current?.uid !== user.uid || familyIdRef.current !== familyId) return;
         if (!snapshot.exists()) {
           cloudReadyRef.current = false;
-          updateState({ status: 'error', message: 'Shared log unavailable', cloudReady: false });
+          updateState({ status: snapshot.metadata.fromCache ? 'offline' : 'error', message: snapshot.metadata.fromCache ? 'Using this device’s saved log' : 'Shared log unavailable', cloudReady: false });
           return;
         }
 
@@ -168,25 +188,28 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
         roleRef.current = role;
         cloudReadyRef.current = true;
         cacheAccess(user, access);
-        if (family.payload && payloadJson !== lastCloudPayloadRef.current) {
+        // A delayed initial snapshot must not replace edits made while connecting.
+        if (family.payload && payloadJson !== lastCloudPayloadRef.current && (!localDirtyRef.current || role === 'viewer')) {
           lastCloudPayloadRef.current = payloadJson;
           onRemoteData(family.payload);
         }
-
-        const offline = snapshot.metadata.fromCache && !navigator.onLine;
-        const pending = snapshot.metadata.hasPendingWrites;
+        if (!snapshot.metadata.fromCache && !snapshot.metadata.hasPendingWrites && payloadJson === lastLocalPayloadRef.current) {
+          localDirtyRef.current = false;
+          lastCloudPayloadRef.current = payloadJson;
+          acknowledgeUpload(user.uid, familyId, payloadJson);
+        }
         updateState({
           role,
           members: {
             supervisorEmails: Array.isArray(family.supervisorEmails) ? family.supervisorEmails : [],
             viewerEmails: Array.isArray(family.viewerEmails) ? family.viewerEmails : [],
           },
-          status: offline ? 'offline' : pending ? 'saving' : 'synced',
-          message: offline ? 'Saved offline' : pending ? 'Saving…' : role === 'viewer' ? 'View only' : 'Synced',
+          ...snapshotSyncStatus({ fromCache: snapshot.metadata.fromCache, hasPendingWrites: snapshot.metadata.hasPendingWrites || localDirtyRef.current }, role),
           cloudReady: true,
         });
       },
       (error) => {
+        if (userRef.current?.uid !== user.uid || familyIdRef.current !== familyId) return;
         if (error.code === 'permission-denied') {
           cloudReadyRef.current = false;
           updateState({ status: 'unapproved', message: 'Access not approved', cloudReady: false });
@@ -203,12 +226,19 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
     const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
     const auth = getAuth(app);
     databaseRef.current = db;
-    void setPersistence(auth, browserLocalPersistence);
+    void setPersistence(auth, browserLocalPersistence).catch(() => undefined);
     void getRedirectResult(auth).catch(() => undefined);
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+    let unsubscribeAccess: (() => void) | undefined;
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      const editsWhileConnecting = localDirtyRef.current;
       userRef.current = user;
       unsubscribeRef.current?.();
+      unsubscribeAccess?.();
+      familyIdRef.current = null;
+      cloudReadyRef.current = false;
+      lastCloudPayloadRef.current = '';
+      localDirtyRef.current = false;
       if (!user) {
         roleRef.current = null;
         familyIdRef.current = null;
@@ -218,22 +248,31 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
       }
 
       const savedAccess = cachedAccess(user);
+      if (savedAccess) localDirtyRef.current = editsWhileConnecting || hasPendingUpload(user.uid, savedAccess.familyId, lastLocalPayloadRef.current);
       updateState({
         user,
         role: savedAccess?.role ?? null,
-        status: navigator.onLine ? 'connecting' : 'offline',
-        message: navigator.onLine ? 'Connecting…' : savedAccess?.role === 'viewer' ? 'Offline · view only' : 'Saved offline',
-        cloudReady: Boolean(savedAccess && !navigator.onLine),
+        status: 'offline',
+        message: savedAccess?.role === 'viewer' ? 'Saved copy · view only' : 'Using this device’s saved log',
+        cloudReady: false,
       });
       roleRef.current = savedAccess?.role ?? null;
       familyIdRef.current = savedAccess?.familyId ?? null;
-      cloudReadyRef.current = Boolean(savedAccess && !navigator.onLine);
-
-      try {
-        const email = normalizeEmail(user.email ?? '');
-        if (!email || email.includes('/')) throw new Error('A valid Google-account email is required');
-        const accessSnapshot = await getDoc(doc(db, ACCESS_COLLECTION, email));
+      // Subscribe immediately using known access; never wait for an online getDoc
+      // timeout before reading Firestore's persistent cache and queuing edits.
+      if (savedAccess) watchFamily(user, db, savedAccess.familyId);
+      const email = normalizeEmail(user.email ?? '');
+      if (!email || email.includes('/')) {
+        updateState({ status: 'error', message: 'A valid Google-account email is required' });
+        return;
+      }
+      // This listener reads cached access first, then verifies it with the server.
+      // Firestore still enforces authorization for every remote read and write.
+      unsubscribeAccess = onSnapshot(doc(db, ACCESS_COLLECTION, email), { includeMetadataChanges: true }, accessSnapshot => {
+        if (userRef.current?.uid !== user.uid) return;
         if (!accessSnapshot.exists()) {
+          if (accessSnapshot.metadata.fromCache) return;
+          unsubscribeRef.current?.();
           roleRef.current = null;
           familyIdRef.current = null;
           cloudReadyRef.current = false;
@@ -242,20 +281,19 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
         }
         const access = accessSnapshot.data() as AccessDocument;
         roleRef.current = access.role;
-        familyIdRef.current = access.familyId;
-        watchFamily(user, db, access.familyId);
-      } catch (error) {
-        const code = (error as { code?: string }).code;
-        if (code === 'permission-denied') {
+        if (familyIdRef.current !== access.familyId) watchFamily(user, db, access.familyId);
+      }, error => {
+        if (userRef.current?.uid !== user.uid) return;
+        if (error.code === 'permission-denied') {
+          unsubscribeRef.current?.();
+          roleRef.current = null;
+          familyIdRef.current = null;
+          cloudReadyRef.current = false;
           updateState({ user, role: null, status: 'unapproved', message: 'Access not approved', cloudReady: false });
           return;
         }
-        if (savedAccess) {
-          watchFamily(user, db, savedAccess.familyId);
-          return;
-        }
-        updateState({ user, role: null, status: 'offline', message: 'Local only while offline', cloudReady: false });
-      }
+        if (!familyIdRef.current) updateState({ status: 'offline', message: 'Using this device’s saved log', cloudReady: false });
+      });
     });
 
     const updateConnection = () => {
@@ -265,6 +303,7 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
     window.addEventListener('offline', updateConnection);
     return () => {
       unsubscribeAuth();
+      unsubscribeAccess?.();
       unsubscribeRef.current?.();
       window.removeEventListener('online', updateConnection);
       window.removeEventListener('offline', updateConnection);
@@ -272,17 +311,31 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
   }, [localReady, updateState, watchFamily]);
 
   useEffect(() => {
-    if (!localReady || !cloudReadyRef.current || !userRef.current || !familyIdRef.current || roleRef.current === 'viewer') return;
+    if (!localReady) return;
     const payloadJson = JSON.stringify(data);
+    if (lastLocalPayloadRef.current && lastLocalPayloadRef.current !== payloadJson) {
+      localDirtyRef.current = payloadJson !== lastCloudPayloadRef.current;
+    }
+    lastLocalPayloadRef.current = payloadJson;
+    if (localDirtyRef.current && userRef.current && familyIdRef.current && roleRef.current && roleRef.current !== 'viewer') {
+      // Keep an account-bound marker until acknowledgement, including across reloads
+      // during the debounce or while Firestore's first cached snapshot is pending.
+      rememberPendingUpload(userRef.current.uid, familyIdRef.current, payloadJson);
+    }
+    if (!cloudReadyRef.current || !userRef.current || !familyIdRef.current || roleRef.current === 'viewer') return;
     if (payloadJson === lastCloudPayloadRef.current) return;
     if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
-    updateState({ status: navigator.onLine ? 'saving' : 'offline', message: navigator.onLine ? 'Saving…' : 'Saved offline' });
+    updateState({ status: 'saving', message: 'Saved on device · syncing…' });
     saveTimerRef.current = window.setTimeout(() => {
       const db = databaseRef.current;
       const familyId = familyIdRef.current;
-      if (!db || !familyId) return;
+      const uid = userRef.current?.uid;
+      if (!db || !familyId || !uid) return;
       void setDoc(doc(db, FAMILY_COLLECTION, familyId), { payload: data, updatedAt: serverTimestamp() }, { merge: true })
         .then(() => {
+          acknowledgeUpload(uid, familyId, payloadJson);
+          if (userRef.current?.uid !== uid || familyIdRef.current !== familyId || payloadJson !== lastLocalPayloadRef.current) return;
+          localDirtyRef.current = false;
           lastCloudPayloadRef.current = payloadJson;
           updateState({ status: navigator.onLine ? 'synced' : 'offline', message: navigator.onLine ? 'Synced' : 'Saved offline' });
         })
@@ -291,7 +344,7 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
     return () => {
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     };
-  }, [data, localReady, updateState]);
+  }, [data, localReady, state.cloudReady, state.role, updateState]);
 
   async function signInWithGoogle() {
     const app = getApps().length ? getApp() : initializeApp(firebaseConfig);

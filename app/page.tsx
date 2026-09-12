@@ -363,7 +363,7 @@ export default function Home() {
 
     if ('serviceWorker' in navigator) {
       const base = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
-      navigator.serviceWorker.register(`${base}/sw.js`).catch(() => undefined);
+      navigator.serviceWorker.register(`${base}/sw.js`, { updateViaCache: 'none' }).catch(() => undefined);
     }
     return () => {
       window.removeEventListener('online', updateOnline);
