@@ -408,6 +408,13 @@ export default function Home() {
 
   const selected = data.drivers.find((driver) => driver.id === data.selectedId) ?? data.drivers[0] ?? null;
   const activeDriver = data.drivers.find((driver) => driver.id === data.active?.driverId) ?? null;
+  const completedTimeByDriver = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const session of data.sessions) {
+      totals.set(session.driverId, (totals.get(session.driverId) ?? 0) + durationMs(session));
+    }
+    return totals;
+  }, [data.sessions]);
   const driverSessions = useMemo(
     () => selected ? data.sessions.filter((session) => session.driverId === selected.id).sort((a, b) => b.start.localeCompare(a.start)) : [],
     [data.sessions, selected],
@@ -962,7 +969,7 @@ export default function Home() {
                 onClick={() => setData({ ...data, selectedId: driver.id })}
               >
                 <span className="avatar">{driver.name.charAt(0).toUpperCase()}</span>
-                {driver.name}
+                <span>{driver.name} ({Math.floor((completedTimeByDriver.get(driver.id) ?? 0) / 3_600_000)}h)</span>
                 {data.active?.driverId === driver.id && <span className="live-dot" aria-label="drive in progress" />}
               </button>
             ))}
