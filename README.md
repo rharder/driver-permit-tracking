@@ -8,6 +8,11 @@ sync, role-based access, exporting, and importing of popular driving log formats
 
 ## State requirements and flexible goals
 
+Each driver can choose a color in **Driver Settings → Driver color**. Tabs, the driving panel, and Start Drive use
+that color; the button also names the driver. New drivers receive an unused color when available, or the least-used
+color when all six are taken. Older logs get distinct defaults without changing driving records. Saved choices work
+offline, sync with the family log, and are included in JSON backups.
+
 Look up all **50 states and DC** from Driving Goals or Driver Settings, with source links, review dates, and editable
 presets. [The maintained state reference](docs/state-driving-requirements.md) lists every state and explains how to update
 the shared dataset. Verify current requirements with your licensing agency; these summaries are not a complete licensing checklist.

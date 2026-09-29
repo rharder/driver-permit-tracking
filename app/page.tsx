@@ -1,6 +1,6 @@
 'use client';
 
-import { ChangeEvent, SubmitEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, SubmitEvent, type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CarFront,
   Check,
@@ -82,6 +82,7 @@ import {
 } from '@/lib/csv-import';
 import { isStudentDrivingLoggerBackup, parseStudentDrivingLoggerBackup } from '@/lib/student-driving-logger-import';
 import { parseRoadReadyPdf } from '@/lib/roadready-pdf-import';
+import { DRIVER_THEMES, assignDriverThemes, driverTheme, nextDriverTheme, type DriverThemeId } from '@/lib/driver-themes';
 
 type Period = 'day' | 'night';
 type Weather = 'Clear' | 'Cloudy' | 'Rain' | 'Snow' | 'Other';
@@ -90,6 +91,7 @@ type Driver = {
   id: string;
   name: string;
   legalName?: string;
+  theme?: DriverThemeId;
   totalGoal: number;
   nightGoal: number;
   practice?: PracticeSettings;
@@ -169,6 +171,15 @@ const STORAGE_KEY = 'permit-miles-data-v1';
 const IMPORT_MAPPINGS_KEY = 'permit-hours-import-mappings-v1';
 const EMPTY_DATA: AppData = { version: 1, drivers: [], sessions: [], active: null, selectedId: null };
 const weatherOptions: Weather[] = ['Clear', 'Cloudy', 'Rain', 'Snow', 'Other'];
+
+function driverThemeStyle(themeId?: string): CSSProperties {
+  const theme = driverTheme(themeId);
+  return {
+    '--green': theme.color, '--green-dark': theme.dark, '--green-light': theme.light,
+    '--driver-paper': theme.paper, '--primary': theme.color, '--primary-foreground': '#fff',
+    '--ring': theme.color,
+  } as CSSProperties;
+}
 
 function id() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -301,7 +312,7 @@ function parseJsonBackup(text: string): AppData {
 
   return {
     version: 1,
-    drivers,
+    drivers: assignDriverThemes(drivers),
     sessions,
     active,
     selectedId: typeof value.selectedId === 'string' && driverIds.has(value.selectedId) ? value.selectedId : drivers[0]?.id ?? null,
@@ -406,8 +417,9 @@ export default function Home() {
   const cloud = useFirebaseSync({ data: shareableData, localReady: ready, onRemoteData: acceptCloudData });
   const readOnly = cloud.state.role === 'viewer';
 
-  const selected = data.drivers.find((driver) => driver.id === data.selectedId) ?? data.drivers[0] ?? null;
-  const activeDriver = data.drivers.find((driver) => driver.id === data.active?.driverId) ?? null;
+  const themedDrivers = useMemo(() => assignDriverThemes(data.drivers), [data.drivers]);
+  const selected = themedDrivers.find((driver) => driver.id === data.selectedId) ?? themedDrivers[0] ?? null;
+  const activeDriver = themedDrivers.find((driver) => driver.id === data.active?.driverId) ?? null;
   const completedTimeByDriver = useMemo(() => {
     const totals = new Map<string, number>();
     for (const session of data.sessions) {
@@ -436,7 +448,7 @@ export default function Home() {
     if (readOnly) return setNotice('This account has view-only access.');
     const name = newName.trim();
     if (!name) return;
-    const driver: Driver = { id: id(), name, totalGoal: 50, nightGoal: 10 };
+    const driver: Driver = { id: id(), name, theme: nextDriverTheme(themedDrivers), totalGoal: 50, nightGoal: 10 };
     setData({ ...data, drivers: [driver], selectedId: driver.id });
     setNewName('');
     setNotice(`${name} is ready to start logging.`);
@@ -444,7 +456,7 @@ export default function Home() {
 
   function openAddDriver() {
     if (readOnly) return setNotice('This account has view-only access.');
-    setDriverDraft({ id: '', name: '', legalName: '', totalGoal: 50, nightGoal: 10 });
+    setDriverDraft({ id: '', name: '', legalName: '', theme: nextDriverTheme(themedDrivers), totalGoal: 50, nightGoal: 10 });
     setDriverDialogOpen(true);
   }
 
@@ -465,15 +477,16 @@ export default function Home() {
     if (readOnly) return setNotice('This account has view-only access.');
     const name = driverDraft.name.trim();
     const legalName = driverDraft.legalName?.trim() || undefined;
+    const theme = driverDraft.theme ?? nextDriverTheme(themedDrivers);
     if (!name) return;
     const error = practiceError(driverDraft);
     if (error) return setNotice(error);
     if (driverDraft.id) {
-      setData({ ...data, drivers: data.drivers.map((driver) => driver.id === driverDraft.id ? { ...driverDraft, name, legalName } : driver) });
+      setData({ ...data, drivers: themedDrivers.map((driver) => driver.id === driverDraft.id ? { ...driverDraft, name, legalName, theme } : driver) });
       setNotice('Driver details updated.');
     } else {
-      const driver = { ...driverDraft, id: id(), name, legalName };
-      setData({ ...data, drivers: [...data.drivers, driver], selectedId: driver.id });
+      const driver = { ...driverDraft, id: id(), name, legalName, theme };
+      setData({ ...data, drivers: [...themedDrivers, driver], selectedId: driver.id });
       setNotice(`${name} was added.`);
     }
     setDriverDialogOpen(false);
@@ -482,7 +495,7 @@ export default function Home() {
   function removeDriver() {
     if (readOnly) return setNotice('This account has view-only access.');
     if (!driverDraft.id || !confirm(`Delete ${driverDraft.name} and all of their driving entries?`)) return;
-    const remaining = data.drivers.filter((driver) => driver.id !== driverDraft.id);
+    const remaining = themedDrivers.filter((driver) => driver.id !== driverDraft.id);
     setData({
       ...data,
       drivers: remaining,
@@ -624,7 +637,7 @@ export default function Home() {
   }
 
   function exportJson() {
-    downloadFile(`permit-hours-${dateInputValue(new Date())}.json`, JSON.stringify(data, null, 2), 'application/json');
+    downloadFile(`permit-hours-${dateInputValue(new Date())}.json`, JSON.stringify({ ...data, drivers: themedDrivers }, null, 2), 'application/json');
   }
 
   function exportCsv() {
@@ -730,7 +743,7 @@ export default function Home() {
   function commitCsvImport() {
     if (!csvImport?.preview?.ready.length) return;
     const batchId = id();
-    const drivers = [...data.drivers];
+    const drivers: Driver[] = [...themedDrivers];
     const sessions = [...data.sessions];
     const driversByName = new Map(drivers.map((driver) => [driver.name.trim().toLowerCase(), driver]));
     const signatures = new Set(sessions.map((session) => `${session.driverId}\u0000${session.start}\u0000${session.end}\u0000${session.period}\u0000${session.weather}\u0000${session.notes}`));
@@ -741,7 +754,7 @@ export default function Home() {
       const driverKey = candidate.driverName.trim().toLowerCase();
       let driver = driversByName.get(driverKey);
       if (!driver) {
-        driver = { id: id(), name: candidate.driverName.trim(), totalGoal: 50, nightGoal: 10 };
+        driver = { id: id(), name: candidate.driverName.trim(), theme: nextDriverTheme(drivers), totalGoal: 50, nightGoal: 10 };
         drivers.push(driver);
         driversByName.set(driverKey, driver);
         createdDriverIds.push(driver.id);
@@ -904,7 +917,7 @@ export default function Home() {
   }
 
   return (
-    <main className="app-shell" id="top">
+    <main className="app-shell" id="top" style={driverThemeStyle(selected?.theme)}>
       <header className="topbar">
         <a className="brand" href="#top" aria-label="Permit Hours home">
           <span className="brand-mark"><CarFront size={20} strokeWidth={2.4} /></span>
@@ -961,10 +974,12 @@ export default function Home() {
       ) : (
         <>
           <section className="driver-bar" aria-label="Drivers">
-            {data.drivers.map((driver) => (
+            {themedDrivers.map((driver) => (
               <button
                 className={`driver-chip ${selected?.id === driver.id ? 'active' : ''}`}
                 key={driver.id}
+                style={driverThemeStyle(driver.theme)}
+                aria-pressed={selected?.id === driver.id}
                 type="button"
                 onClick={() => setData({ ...data, selectedId: driver.id })}
               >
@@ -981,7 +996,7 @@ export default function Home() {
               {data.active?.driverId === selected?.id ? (
                 <>
                   <div>
-                    <p className="eyebrow live-label"><span /> Drive in progress · {data.active.period}</p>
+                    <p className="eyebrow live-label"><span /> {selected?.name} · Drive in progress · {data.active.period}</p>
                     <h1>Keep your eyes on the road.</h1>
                     <p className="lede">Started at {new Date(data.active.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · {data.active.weather}</p>
                   </div>
@@ -1033,10 +1048,10 @@ export default function Home() {
                     </div>
                     {Boolean(selected?.practice?.poorWeatherGoal || selected?.practice?.challengingGoal) && <ConditionFields value={{ weather, ...conditions }} onChange={patch => setConditions(current => ({ ...current, ...patch }))} showChallenge={Boolean(selected?.practice?.challengingGoal)} />}
                   </div>
-                  <button className="start-button" type="button" onClick={startDrive} aria-label="Start drive">
+                  <button className="start-button" type="button" onClick={startDrive} aria-label={`Start drive for ${selected?.name}`}>
                     <span className="start-icon">▶</span>
                     <strong>Start drive</strong>
-                    <small>Tap when you’re ready</small>
+                    <small>For {selected?.name}</small>
                   </button>
                   <p className="save-note">Your drive is saved locally as soon as you stop.</p>
                 </>
@@ -1103,7 +1118,7 @@ export default function Home() {
         setStateLookupOpen(false);
         if (lookupReturnsToDriver) setDriverDialogOpen(true);
       }} onApply={readOnly ? undefined : goals => {
-        setDriverDraft({ ...(lookupReturnsToDriver ? driverDraft : selected ?? { id: '', name: newName, legalName: '' }), ...goals });
+        setDriverDraft({ ...(lookupReturnsToDriver ? driverDraft : selected ?? { id: '', name: newName, legalName: '', theme: nextDriverTheme(themedDrivers) }), ...goals });
         setDriverDialogOpen(true);
       }} />}
 
@@ -1286,10 +1301,22 @@ export default function Home() {
       </Dialog>
 
       <Dialog open={driverDialogOpen} onOpenChange={setDriverDialogOpen}>
-        <DialogContent className="permit-dialog scroll-dialog sm:max-w-lg">
+        <DialogContent className="permit-dialog scroll-dialog sm:max-w-lg" style={driverThemeStyle(driverDraft.theme)}>
           <DialogHeader><DialogTitle>{driverDraft.id ? 'Driver settings' : 'Add a driver'}</DialogTitle><DialogDescription>Choose the name shown in the app and the legal name used on signed reports.</DialogDescription></DialogHeader>
           <form id="driver-form" onSubmit={saveDriver} className="dialog-form scroll-dialog-body">
             <label htmlFor="driver-name">Name used in the app<Input id="driver-name" value={driverDraft.name} onChange={(event) => setDriverDraft({ ...driverDraft, name: event.target.value })} placeholder="First name or nickname" required /><small className="field-help">This is the short name shown when switching drivers.</small></label>
+            <fieldset className="driver-theme-picker">
+              <legend>Driver color</legend>
+              <div className="driver-theme-options">
+                {DRIVER_THEMES.map(theme => (
+                  <label key={theme.id} style={driverThemeStyle(theme.id)}>
+                    <input type="radio" name="driver-theme" value={theme.id} checked={driverTheme(driverDraft.theme).id === theme.id} onChange={() => setDriverDraft({ ...driverDraft, theme: theme.id })} />
+                    <span className="theme-choice"><span className="theme-swatch" aria-hidden="true">{driverTheme(driverDraft.theme).id === theme.id && <Check size={16} />}</span>{theme.name}</span>
+                  </label>
+                ))}
+              </div>
+              <p>Shown on this driver’s tab and driving screen.</p>
+            </fieldset>
             <label htmlFor="driver-legal-name">Full legal name <span>(optional)</span><Input id="driver-legal-name" value={driverDraft.legalName ?? ''} onChange={(event) => setDriverDraft({ ...driverDraft, legalName: event.target.value })} placeholder="First, middle, and last name" autoComplete="off" /><small className="field-help">Used on the printable supervised driving log. Until added, the app name is used.</small></label>
             <Button type="button" variant="outline" onClick={() => openStateLookup(true)}>Look up state requirements</Button>
             <div className="form-grid"><label htmlFor="total-goal">Total hours goal<Input id="total-goal" type="number" min="0.25" step="0.25" value={driverDraft.totalGoal} onChange={(event) => setDriverDraft({ ...driverDraft, totalGoal: Number(event.target.value) })} required /></label><label htmlFor="night-goal">Night hours goal<Input id="night-goal" type="number" min="0" step="0.25" value={driverDraft.nightGoal} onChange={(event) => setDriverDraft({ ...driverDraft, nightGoal: Number(event.target.value) })} required /></label></div>
