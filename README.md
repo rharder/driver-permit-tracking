@@ -23,14 +23,14 @@ recorded time from counted time. JSON backups include the goal settings; JSON an
 The reference and tracking work offline, and changes use the existing family sync. Colorado’s 50-total/10-night defaults
 stay unchanged unless you choose another preset.
 
-The **Print** button prepares Colorado’s original DR2324 PDF (revision 08/25/26), with the driver’s legal name,
-completed drives, and day/night totals. Open the PDF and use File → Print, or download it and print from Preview on Mac.
-Use US Letter at 100% scale. Permit number, verifier initials, and adult name/signature/date remain blank and editable.
-Extra log sheets are added as needed, including continuation rows for long notes. Totals include all recorded drives,
-not goal counting limits. The template is cached with the app for offline use after a successful online load.
-The bundled blank [form](public/forms/dr2324-2026.pdf) was supplied from the
-[Colorado DMV source](https://dmv.colorado.gov/sites/dmv/files/documents/DR_2324_e_wo.pdf).
-When updating it, verify its field names and layout against `lib/dr2324-pdf.ts` and run the PDF tests.
+The **Print** button offers a professional **General driving log** and **Colorado DR2324** (revision 08/25/26).
+It suggests a supported form based on the driver’s selected state; the general report is always available.
+Reports include the legal name, completed drives, day/night totals, and blank certification/signing fields.
+The general report is not government-issued; confirm acceptance with your licensing agency.
+Open the PDF and use File → Print, or download it and print from Preview on Mac. Use US Letter at 100% scale.
+Extra pages are added as needed, including continuation rows for long notes. Totals include all recorded drives,
+not goal counting limits. Generation happens on-device; state templates are cached with the app for offline use.
+See [Adding report formats](docs/report-formats.md) for the registry, generators, offline assets, and validation checklist.
 
 ## Run locally
 

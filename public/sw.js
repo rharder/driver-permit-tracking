@@ -1,4 +1,4 @@
-const CACHE_NAME = 'permit-hours-v8';
+const CACHE_NAME = 'permit-hours-v9';
 const ROOT_URL = new URL('./', self.registration.scope).href;
 const MANIFEST_URL = new URL('./manifest.webmanifest', ROOT_URL).href;
 const OPTIONAL_ASSETS = ['./pdf.min.mjs', './pdf.worker.min.mjs'];

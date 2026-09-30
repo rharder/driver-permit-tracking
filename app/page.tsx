@@ -926,7 +926,7 @@ export default function Home() {
                     <DropdownMenuItem onClick={exportCsv}><FileSpreadsheet /><span><strong>CSV spreadsheet</strong><small>Drive history for other apps</small></span></DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <button type="button" onClick={printDrivingLog} title={`Prepare ${selected?.name ?? 'driver'}’s Colorado DR2324 PDF`}><Printer size={16} /> <span>Print</span></button>
+                <button type="button" onClick={printDrivingLog} title={`Prepare ${selected?.name ?? 'driver'}’s driving log PDF`}><Printer size={16} /> <span>Print</span></button>
               </>}
             </div>
           )}
@@ -1094,7 +1094,7 @@ export default function Home() {
       )}
 
       {printDraft && <PrintLogDialog driver={printDraft.driver} sessions={printDraft.sessions} onClose={() => setPrintDraft(null)} />}
-      <p className="print-instructions">Use Permit Hours’ Print button to prepare the official DR2324 PDF, then open or download that PDF and print it.</p>
+      <p className="print-instructions">Use Permit Hours’ Print button to choose a report, then open or download that PDF and print it.</p>
 
       {notice && <output className="toast"><Check size={17} /> {notice}</output>}
 

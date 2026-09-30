@@ -6,7 +6,7 @@ import { runInNewContext } from 'node:vm';
 const source = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
 const scope = 'https://rharder.github.io/driver-permit-tracking/';
 const manifestUrl = scope + 'manifest.webmanifest?v=2';
-const cacheName = 'permit-hours-v8';
+const cacheName = 'permit-hours-v9';
 const markup = version => '<!doctype html><link rel="stylesheet" href="./' + version + '.css"><script src="./' + version + '.js"></script>';
 const page = version => new Response(markup(version), { headers: { 'content-type': 'text/html' } });
 
@@ -233,7 +233,7 @@ void test('activation preserves the preceding version for open tabs and leaves o
   await (await worker.caches.open('permit-hours-v99')).put('https://rharder.github.io/another/', page('other'));
   await worker.activate();
   assert.equal(worker.activated, true);
-  assert.deepEqual((await worker.caches.keys()).sort(), ['other-app-v1', 'permit-hours-v6', 'permit-hours-v8', 'permit-hours-v99']);
+  assert.deepEqual((await worker.caches.keys()).sort(), ['other-app-v1', 'permit-hours-v6', 'permit-hours-v9', 'permit-hours-v99']);
   worker.setNetwork(async () => { throw new Error('Offline'); });
   assert.equal(await (await worker.request(scope + 'previous.js')).text(), 'script');
   await worker.finishBackground();

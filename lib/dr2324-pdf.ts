@@ -1,19 +1,9 @@
 import { PDFDocument, PDFDict, PDFName, PDFRef, StandardFonts, type PDFFont } from 'pdf-lib';
+import { pdfDuration, type PrintableDrive, type PrintableDriver } from './report-types.ts';
+export { pdfDuration, type PrintableDrive, type PrintableDriver } from './report-types.ts';
 
 export const DR2324_TEMPLATE = '/forms/dr2324-2026.pdf';
 export const DR2324_ROWS_PER_PAGE = 14;
-export type PrintableDrive = {
-  id: string; start: string; end: string; period: 'day' | 'night'; weather: string; notes: string;
-  poorWeather?: boolean; challenging?: boolean;
-};
-export type PrintableDriver = { name: string; legalName?: string };
-
-export function pdfDuration(seconds: number) {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor(seconds % 3600 / 60);
-  const remainder = seconds % 60;
-  return `${hours}h ${String(minutes).padStart(2, '0')}m${remainder ? ` ${String(remainder).padStart(2, '0')}s` : ''}`;
-}
 
 function dateText(date: Date) {
   return new Intl.DateTimeFormat('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }).format(date);

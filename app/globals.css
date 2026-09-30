@@ -357,6 +357,8 @@ h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp
 .print-pdf-actions a { text-decoration: underline; }
 .print-pdf-actions .print-pdf-open { padding: 12px 16px; border-radius: 12px; background: var(--green); color: white; text-decoration: none; font-weight: 700; }
 .print-pdf-note { color: var(--quiet); font-size: 12px; }
+.report-format-label { display: grid; gap: 8px; font-weight: 700; }
+.report-format-label select { width: 100%; min-height: 44px; padding: 10px; border: 1px solid var(--quiet); border-radius: 8px; background: white; color: #18251d; font: inherit; }
 @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(.8); } }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 @keyframes weather-label { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }

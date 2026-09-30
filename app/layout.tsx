@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { REPORT_ASSETS } from '@/lib/report-formats';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -32,7 +33,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <head><link rel="preload" href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/forms/dr2324-2026.pdf`} as="fetch" type="application/pdf" crossOrigin="anonymous" /></head>
+      <head>{REPORT_ASSETS.map(path => <link key={path} rel="preload" href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}${path}`} as="fetch" crossOrigin="anonymous" />)}</head>
       <body>{children}</body>
     </html>
   );
