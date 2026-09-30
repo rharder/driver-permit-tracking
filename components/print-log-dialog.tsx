@@ -4,13 +4,15 @@ import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { createReportPdf } from '@/lib/report-pdf';
-import { REPORT_FORMATS, suggestedReportFormat, type ReportFormatId } from '@/lib/report-formats';
+import { REPORT_FORMATS, type ReportFormatId } from '@/lib/report-formats';
+import { reportPreferences } from '@/lib/report-preferences';
 import type { PrintableDrive, PrintableDriver } from '@/lib/report-types';
 
 export function PrintLogDialog({ driver, sessions, onClose }: {
   driver: PrintableDriver; sessions: readonly PrintableDrive[]; onClose: () => void;
 }) {
-  const [formatId, setFormatId] = useState<ReportFormatId>(() => suggestedReportFormat(driver.practice?.stateCode));
+  const [formatId, setFormatId] = useState<ReportFormatId>(() => reportPreferences.read(driver.practice?.stateCode));
+  useEffect(() => { reportPreferences.remember(formatId); }, [formatId]);
   const format = REPORT_FORMATS.find(item => item.id === formatId)!;
   const [pdf, setPdf] = useState<{ url: string; name: string; formatId: ReportFormatId } | null>(null);
   const [error, setError] = useState('');

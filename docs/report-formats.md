@@ -2,7 +2,9 @@
 
 The print dialog offers a general Permit Hours report and independently implemented state forms.
 The general report is not government-issued or a guarantee of agency acceptance. State selection only
-suggests a format; every format remains selectable. Without a supported state, general is the default.
+suggests a format on first use; every format remains selectable. Without a supported state, general is the default.
+The last selected format (including the initial default) is remembered on this device across drivers and reloads.
+A saved choice takes priority over state suggestions. Invalid or retired format IDs fall back to the state/default.
 All generators run on-device and include completed drives, not goal-limited credits or active timers.
 
 ## Adding a state form
