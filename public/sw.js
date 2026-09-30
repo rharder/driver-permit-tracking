@@ -1,4 +1,4 @@
-const CACHE_NAME = 'permit-hours-v7';
+const CACHE_NAME = 'permit-hours-v8';
 const ROOT_URL = new URL('./', self.registration.scope).href;
 const MANIFEST_URL = new URL('./manifest.webmanifest', ROOT_URL).href;
 const OPTIONAL_ASSETS = ['./pdf.min.mjs', './pdf.worker.min.mjs'];
@@ -12,7 +12,7 @@ function inApp(url) {
 function shellAssets(markup) {
   return [...new Set([...markup.matchAll(/(?:src|href)="([^"]+)"/g)]
     .map(match => new URL(match[1].replaceAll('&amp;', '&'), ROOT_URL))
-    .filter(url => inApp(url) && /\.(?:js|mjs|css|svg|png|ico|webmanifest|woff2?)(?:$|\?)/.test(url.pathname + url.search))
+    .filter(url => inApp(url) && /\.(?:js|mjs|css|svg|png|ico|webmanifest|woff2?|pdf)(?:$|\?)/.test(url.pathname + url.search))
     .map(url => url.href))];
 }
 
@@ -37,6 +37,7 @@ async function download(url, signal, html = false) {
   if (html && !type.includes('text/html')) throw new Error('Expected an app page');
   if (!html && /\.(?:js|mjs|css)(?:$|\?)/.test(String(url)) && type.includes('text/html')) throw new Error('Expected an app asset');
   const bytes = await response.arrayBuffer();
+  if (/\.pdf(?:$|\?)/.test(String(url)) && new TextDecoder().decode(bytes.slice(0, 5)) !== '%PDF-') throw new Error('Expected a PDF form');
   if (signal.aborted) throw new Error('Connection timed out');
   const headers = new Headers(response.headers);
   headers.delete('content-encoding');
@@ -176,7 +177,7 @@ self.addEventListener('fetch', event => {
   }
 
   // Only static app assets are cached. This must never become a cache for authentication or APIs.
-  if (!/\.(?:js|mjs|css|svg|png|ico|webmanifest|woff2?)(?:$|\?)/.test(url.pathname + url.search)) return;
+  if (!/\.(?:js|mjs|css|svg|png|ico|webmanifest|woff2?|pdf)(?:$|\?)/.test(url.pathname + url.search)) return;
   const result = (async () => {
     const cached = await cachedAsset(event.request);
     if (cached) return cached;

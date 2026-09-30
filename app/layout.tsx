@@ -32,6 +32,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
+      <head><link rel="preload" href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/forms/dr2324-2026.pdf`} as="fetch" type="application/pdf" crossOrigin="anonymous" /></head>
       <body>{children}</body>
     </html>
   );

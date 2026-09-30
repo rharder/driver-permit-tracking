@@ -18,10 +18,19 @@ presets. [The maintained state reference](docs/state-driving-requirements.md) li
 the shared dataset. Verify current requirements with your licensing agency; these summaries are not a complete licensing checklist.
 
 Each driver can track total, daytime, nighttime, poor-weather, and challenging-condition goals, with an optional stage
-start date and daily counted-minute limit. Full drive history is always retained; progress and printed reports distinguish
+start date and daily counted-minute limit. Full drive history is always retained; progress distinguishes
 recorded time from counted time. JSON backups include the goal settings; JSON and CSV exports preserve condition tags.
 The reference and tracking work offline, and changes use the existing family sync. Colorado’s 50-total/10-night defaults
 stay unchanged unless you choose another preset.
+
+The **Print** button prepares Colorado’s original DR2324 PDF (revision 08/25/26), with the driver’s legal name,
+completed drives, and day/night totals. Open the PDF and use File → Print, or download it and print from Preview on Mac.
+Use US Letter at 100% scale. Permit number, verifier initials, and adult name/signature/date remain blank and editable.
+Extra log sheets are added as needed, including continuation rows for long notes. Totals include all recorded drives,
+not goal counting limits. The template is cached with the app for offline use after a successful online load.
+The bundled blank [form](public/forms/dr2324-2026.pdf) was supplied from the
+[Colorado DMV source](https://dmv.colorado.gov/sites/dmv/files/documents/DR_2324_e_wo.pdf).
+When updating it, verify its field names and layout against `lib/dr2324-pdf.ts` and run the PDF tests.
 
 ## Run locally
 

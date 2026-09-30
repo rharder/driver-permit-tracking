@@ -6,7 +6,7 @@ import { runInNewContext } from 'node:vm';
 const source = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
 const scope = 'https://rharder.github.io/driver-permit-tracking/';
 const manifestUrl = scope + 'manifest.webmanifest?v=2';
-const cacheName = 'permit-hours-v7';
+const cacheName = 'permit-hours-v8';
 const markup = version => '<!doctype html><link rel="stylesheet" href="./' + version + '.css"><script src="./' + version + '.js"></script>';
 const page = version => new Response(markup(version), { headers: { 'content-type': 'text/html' } });
 
@@ -53,7 +53,7 @@ function createWorker() {
       skipWaiting() { skippedWaiting = true; },
       addEventListener(name, listener) { listeners[name] = listener; },
     },
-    caches, URL, Request, Response, Headers, AbortController,
+    caches, URL, Request, Response, Headers, AbortController, TextDecoder,
     setTimeout(callback) { timers.add(callback); return callback; },
     clearTimeout(callback) { timers.delete(callback); },
     fetch(request, options) {
@@ -140,6 +140,24 @@ void test('failed assets, HTTP errors and captive-portal pages do not replace th
   }
 });
 
+void test('PDF template must be valid before promoting the shell and remains available offline', async () => {
+  for (const valid of [true, false]) {
+    const worker = createWorker();
+    const cache = await worker.seed();
+    const html = markup('new') + '<link rel="preload" href="./forms/dr2324-2026.pdf" as="fetch">';
+    worker.setNetwork(async url => url === scope
+      ? new Response(html, { headers: { 'content-type': 'text/html' } })
+      : new Response(url.endsWith('.pdf') ? (valid ? '%PDF-test' : '<html>Sign in</html>') : 'asset'));
+    await worker.request(scope, { mode: 'navigate' });
+    await worker.finishBackground();
+    assert.equal(await (await cache.match(scope)).text(), valid ? html : markup('old'));
+    if (valid) {
+      worker.setNetwork(async () => { throw new Error('Offline'); });
+      assert.equal(await (await worker.request(scope + 'forms/dr2324-2026.pdf')).text(), '%PDF-test');
+    }
+  }
+});
+
 void test('stalled response bodies time out without replacing the cached entrypoint', { timeout: 1000 }, async () => {
   const worker = createWorker();
   const cache = await worker.seed();
@@ -215,7 +233,7 @@ void test('activation preserves the preceding version for open tabs and leaves o
   await (await worker.caches.open('permit-hours-v99')).put('https://rharder.github.io/another/', page('other'));
   await worker.activate();
   assert.equal(worker.activated, true);
-  assert.deepEqual((await worker.caches.keys()).sort(), ['other-app-v1', 'permit-hours-v6', 'permit-hours-v7', 'permit-hours-v99']);
+  assert.deepEqual((await worker.caches.keys()).sort(), ['other-app-v1', 'permit-hours-v6', 'permit-hours-v8', 'permit-hours-v99']);
   worker.setNetwork(async () => { throw new Error('Offline'); });
   assert.equal(await (await worker.request(scope + 'previous.js')).text(), 'script');
   await worker.finishBackground();

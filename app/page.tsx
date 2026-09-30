@@ -60,6 +60,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { FamilyMemberRow } from '@/components/family-member-row';
 import { Feedback } from '@/components/feedback';
+import { PrintLogDialog } from '@/components/print-log-dialog';
 import { StateRequirementsDialog } from '@/components/state-requirements-dialog';
 import { ConditionFields, PracticeGoalFields } from '@/components/practice-goal-fields';
 import { calculatePractice, countingDescription, isPoorWeather, practiceError, validConditionFlags, type PracticeSettings } from '@/lib/practice-goals';
@@ -260,13 +261,6 @@ function csvCell(value: string | number) {
   return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
-function printDate(value: Date) {
-  return new Intl.DateTimeFormat(undefined, { month: '2-digit', day: '2-digit', year: 'numeric' }).format(value);
-}
-
-function printTime(value: Date) {
-  return value.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-}
 
 function isDateString(value: unknown): value is string {
   return typeof value === 'string' && Number.isFinite(new Date(value).getTime());
@@ -344,6 +338,7 @@ export default function Home() {
   const [invitationFor, setInvitationFor] = useState<{ email: string; ownerUid: string } | null>(null);
   const [cloudBusy, setCloudBusy] = useState(false);
   const [importingFile, setImportingFile] = useState(false);
+  const [printDraft, setPrintDraft] = useState<{ driver: Driver; sessions: DriveSession[] } | null>(null);
 
   useEffect(() => {
     let initialData = EMPTY_DATA;
@@ -433,7 +428,6 @@ export default function Home() {
   );
   const printableSessions = useMemo(() => [...driverSessions].sort((a, b) => a.start.localeCompare(b.start)), [driverSessions]);
   const totalTime = driverSessions.reduce((sum, session) => sum + durationMs(session), 0);
-  const nightTime = driverSessions.filter((session) => session.period === 'night').reduce((sum, session) => sum + durationMs(session), 0);
   const progress = useMemo(() => calculatePractice(driverSessions, selected ?? { totalGoal: 50, nightGoal: 10 }), [driverSessions, selected]);
   const liveDuration = data.active ? now - new Date(data.active.start).getTime() : 0;
 
@@ -652,13 +646,7 @@ export default function Home() {
 
   function printDrivingLog() {
     if (!selected) return;
-    const previousTitle = document.title;
-    const safeName = selected.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'driver';
-    const restoreTitle = () => { document.title = previousTitle; };
-    document.title = `permit-hours-${safeName}-${dateInputValue(new Date())}`;
-    window.addEventListener('afterprint', restoreTitle, { once: true });
-    window.print();
-    window.setTimeout(restoreTitle, 1_000);
+    setPrintDraft({ driver: selected, sessions: printableSessions });
   }
 
   function prepareImportPreview(draft: CsvImportDraft): CsvImportPreview {
@@ -938,7 +926,7 @@ export default function Home() {
                     <DropdownMenuItem onClick={exportCsv}><FileSpreadsheet /><span><strong>CSV spreadsheet</strong><small>Drive history for other apps</small></span></DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <button type="button" onClick={printDrivingLog} title={`Print ${selected?.name ?? 'driver'}’s signed log`}><Printer size={16} /> <span>Print</span></button>
+                <button type="button" onClick={printDrivingLog} title={`Prepare ${selected?.name ?? 'driver'}’s Colorado DR2324 PDF`}><Printer size={16} /> <span>Print</span></button>
               </>}
             </div>
           )}
@@ -1105,12 +1093,8 @@ export default function Home() {
         </>
       )}
 
-      {selected && <PrintableReport
-        driver={selected}
-        sessions={printableSessions}
-        totalTime={totalTime}
-        nightTime={nightTime}
-      />}
+      {printDraft && <PrintLogDialog driver={printDraft.driver} sessions={printDraft.sessions} onClose={() => setPrintDraft(null)} />}
+      <p className="print-instructions">Use Permit Hours’ Print button to prepare the official DR2324 PDF, then open or download that PDF and print it.</p>
 
       {notice && <output className="toast"><Check size={17} /> {notice}</output>}
 
@@ -1352,76 +1336,6 @@ export default function Home() {
   );
 }
 
-function PrintableReport({ driver, sessions, totalTime, nightTime }: {
-  driver: Driver;
-  sessions: DriveSession[];
-  totalTime: number;
-  nightTime: number;
-}) {
-  const daytimeTime = Math.max(0, totalTime - nightTime);
-  const progress = calculatePractice(sessions, driver);
-  return (
-    <section className="print-report">
-      <header className="print-header">
-        <div><span className="print-brand-mark"><CarFront size={18} /></span><strong>Permit Hours</strong></div>
-        <div><h1>Supervised Driving Log</h1><p>Generated {printDate(new Date())}</p></div>
-      </header>
-
-      <div className="print-driver-fields">
-        <p><span>Driver’s full legal name</span><strong>{driver.legalName?.trim() || driver.name}</strong></p>
-        <p><span>Permit number</span><i /></p>
-        <p><span>Parent, guardian, or instructor</span><i /></p>
-      </div>
-
-      <div className="print-totals" aria-label="Driving totals and goals">
-        <div><span>Daytime</span><strong>{formatDuration(daytimeTime)}</strong></div>
-        <div><span>Nighttime</span><strong>{formatDuration(nightTime)}</strong></div>
-        <div><span>Total recorded</span><strong>{formatDuration(totalTime)}</strong></div>
-      </div>
-
-      <section className="print-goal-summary">
-        <h2>Counted toward current practice goals</h2>
-        <p>{countingDescription(driver.practice)}. Goals are user-configurable; this is not a determination of license eligibility.</p>
-        <p>{progress.goals.map(goal => `${goal.label}: ${formatDuration(goal.value)} / ${goal.hours}h`).join(' · ')}</p>
-        {(driver.practice?.poorWeatherGoal || driver.practice?.challengingGoal) ? <p>Condition hours are included in the total. Challenging conditions count night OR poor weather OR a marked other challenge, without double-counting the same practice.</p> : null}
-      </section>
-
-      <table className="print-log-table">
-        <caption>Detailed practice log — all recorded driving, before counting limits</caption>
-        <thead><tr><th>Date</th><th>Start–end</th><th>Day</th><th>Night</th><th>Weather</th><th>Notes</th></tr></thead>
-        <tbody>
-          {sessions.length ? sessions.map((session) => {
-            const start = new Date(session.start);
-            const end = new Date(session.end);
-            const duration = formatDuration(durationMs(session));
-            const nextDay = start.toDateString() !== end.toDateString();
-            return <tr key={session.id}>
-              <td>{printDate(start)}</td>
-              <td>{printTime(start)}–{printTime(end)}{nextDay ? ' +1' : ''}</td>
-              <td>{session.period === 'day' ? duration : '—'}</td>
-              <td>{session.period === 'night' ? duration : '—'}</td>
-              <td>{session.weather}</td>
-              <td>{[session.notes, isPoorWeather(session) ? 'Poor weather' : '', session.challenging ? 'Other challenging conditions' : '', (progress.creditedById[session.id] ?? 0) < durationMs(session) ? `${formatDuration(progress.creditedById[session.id] ?? 0)} counted for current goals` : ''].filter(Boolean).join(' · ') || '—'}</td>
-            </tr>;
-          }) : <tr><td colSpan={6} className="print-empty">No completed drives are recorded.</td></tr>}
-        </tbody>
-        <tfoot><tr><th colSpan={2}>Totals</th><td>{formatDuration(daytimeTime)}</td><td>{formatDuration(nightTime)}</td><td colSpan={2}>{formatDuration(totalTime)} total</td></tr></tfoot>
-      </table>
-
-      <section className="print-certification">
-        <h2>Review and certification</h2>
-        <p>Review the entries and totals before signing. The parent, guardian, or driving instructor responsible for this log should sign below. Confirm that your licensing agency accepts this report and whether it requires an additional state form.</p>
-        <p className="certification-statement">I certify that the supervised driving experience recorded above is complete and accurate to the best of my knowledge.</p>
-        <div className="print-signature-fields">
-          <p><i /><span>Signature</span></p>
-          <p><i /><span>Printed name</span></p>
-          <p><i /><span>Date</span></p>
-        </div>
-        <small>Generated from the Permit Hours driving log. This report does not replace a form specifically required by a state licensing agency.</small>
-      </section>
-    </section>
-  );
-}
 
 function GoalCard({ icon, label, value, goal, progress, night = false }: { icon: React.ReactNode; label: string; value: number; goal: number; progress: number; night?: boolean }) {
   return (
