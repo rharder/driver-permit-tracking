@@ -61,6 +61,7 @@ import { Input } from '@/components/ui/input';
 import { FamilyMemberRow } from '@/components/family-member-row';
 import { Feedback } from '@/components/feedback';
 import { PrintLogDialog } from '@/components/print-log-dialog';
+import { updateActiveDriveWeather } from '@/lib/active-drive-weather';
 import { StateRequirementsDialog } from '@/components/state-requirements-dialog';
 import { ConditionFields, PracticeGoalFields } from '@/components/practice-goal-fields';
 import { calculatePractice, countingDescription, isPoorWeather, practiceError, validConditionFlags, type PracticeSettings } from '@/lib/practice-goals';
@@ -432,6 +433,10 @@ export default function Home() {
   const liveDuration = data.active ? now - new Date(data.active.start).getTime() : 0;
 
   function selectWeather(option: Weather) {
+    if (readOnly) return;
+    if (data.active) {
+      setData(current => ({ ...current, active: updateActiveDriveWeather(current.active, selected?.id, option, readOnly) }));
+    }
     setWeather(option);
     setConditions(current => ({ ...current, poorWeather: undefined }));
     setRevealedWeather({ value: option });
@@ -989,6 +994,7 @@ export default function Home() {
                     <p className="lede">Started at {new Date(data.active.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · {data.active.weather}</p>
                   </div>
                   <div className="timer" aria-live="off">{formatDuration(liveDuration, true)}</div>
+                  <WeatherControls value={data.active.weather} revealed={revealedWeather?.value} onChange={selectWeather} disabled={readOnly} />
                   {readOnly ? (
                     <div className="viewer-badge"><Eye size={16} /> Live view only</div>
                   ) : (
@@ -1027,13 +1033,7 @@ export default function Home() {
                       <button className={period === 'day' ? 'selected' : ''} onClick={() => setPeriod('day')} type="button"><Sun size={18} /> Day</button>
                       <button className={period === 'night' ? 'selected' : ''} onClick={() => setPeriod('night')} type="button"><Moon size={18} /> Night</button>
                     </div>
-                    <div className="weather-options" aria-label="Weather">
-                      {weatherOptions.map((option) => (
-                        <button className={`${weather === option ? 'selected' : ''} ${revealedWeather?.value === option ? 'reveal-label' : ''}`} key={option} type="button" onClick={() => selectWeather(option)}>
-                          {weatherIcon(option)}<span>{option}</span>
-                        </button>
-                      ))}
-                    </div>
+                    <WeatherControls value={weather} revealed={revealedWeather?.value} onChange={selectWeather} />
                     {Boolean(selected?.practice?.poorWeatherGoal || selected?.practice?.challengingGoal) && <ConditionFields value={{ weather, ...conditions }} onChange={patch => setConditions(current => ({ ...current, ...patch }))} showChallenge={Boolean(selected?.practice?.challengingGoal)} />}
                   </div>
                   <button className="start-button" type="button" onClick={startDrive} aria-label={`Start drive for ${selected?.name}`}>
@@ -1336,6 +1336,16 @@ export default function Home() {
   );
 }
 
+
+function WeatherControls({ value, revealed, onChange, disabled = false }: { value: Weather; revealed?: Weather; onChange: (weather: Weather) => void; disabled?: boolean }) {
+  return <div className="weather-options" role="group" aria-label="Weather">
+    {weatherOptions.map(option => <button
+      className={`${value === option ? 'selected' : ''} ${revealed === option ? 'reveal-label' : ''}`}
+      key={option} type="button" aria-label={option} aria-pressed={value === option}
+      disabled={disabled} onClick={() => onChange(option)}
+    >{weatherIcon(option)}<span>{option}</span></button>)}
+  </div>;
+}
 
 function GoalCard({ icon, label, value, goal, progress, night = false }: { icon: React.ReactNode; label: string; value: number; goal: number; progress: number; night?: boolean }) {
   return (
