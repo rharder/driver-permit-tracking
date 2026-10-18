@@ -15,3 +15,14 @@ export function matchesPendingUpload(raw: string | null, uid: string, familyId: 
     return Boolean(pending && pending.uid === uid && pending.familyId === familyId && pending.payloadJson === payloadJson);
   } catch { return false; }
 }
+
+export function checkpointSyncForReload(state: {
+  localReady: boolean; authReady: boolean; payloadJson: string; observedPayloadJson: string;
+  uid: string | null; familyId: string | null; role: 'owner' | 'supervisor' | 'viewer' | null; dirty: boolean;
+}, persistPending: (uid: string, familyId: string, payloadJson: string) => boolean) {
+  if (!state.localReady || !state.authReady || state.payloadJson !== state.observedPayloadJson) return false;
+  if (!state.uid || state.role === 'viewer' || !state.dirty) return true;
+  if (!state.familyId || !state.role) return false;
+  try { return persistPending(state.uid, state.familyId, state.payloadJson); }
+  catch { return false; }
+}

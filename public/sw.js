@@ -1,9 +1,23 @@
-const CACHE_NAME = 'permit-hours-v9';
+const CACHE_NAME = 'permit-hours-v10';
 const ROOT_URL = new URL('./', self.registration.scope).href;
 const MANIFEST_URL = new URL('./manifest.webmanifest', ROOT_URL).href;
 const OPTIONAL_ASSETS = ['./pdf.min.mjs', './pdf.worker.min.mjs'];
 const NETWORK_TIMEOUT_MS = 12000;
 let shellUpdate;
+
+function appBuild(markup) {
+  return markup.match(/<meta\s+name="permit-hours-build"\s+content="([a-zA-Z0-9._-]{1,96})"\s*\/?\s*>/)?.[1];
+}
+
+async function notifyUpdateReady(client) {
+  const page = await (await caches.open(CACHE_NAME)).match(ROOT_URL);
+  const version = page && appBuild(await page.text());
+  if (!version || version === 'development') return;
+  const clients = client ? [client] : await self.clients.matchAll({ type: 'window' });
+  for (const target of clients) {
+    if (target.url && inApp(new URL(target.url))) target.postMessage({ type: 'APP_UPDATE_READY', version });
+  }
+}
 
 function inApp(url) {
   return url.origin === self.location.origin && url.pathname.startsWith(new URL(ROOT_URL).pathname);
@@ -79,6 +93,7 @@ function refreshShell() {
     if (signal.aborted) throw new Error('Connection timed out');
     // Commit the entrypoint LAST: failures must never strand HTML without its assets.
     await cache.put(ROOT_URL, page);
+    await notifyUpdateReady();
   }).finally(() => { shellUpdate = undefined; });
   return shellUpdate;
 }
@@ -137,6 +152,18 @@ self.addEventListener('activate', event => {
       else await caches.delete(name);
     }
     await self.clients.claim();
+    // Activation must stay network-free. The client's controllerchange handler
+    // requests a background refresh after this worker can serve cached fetches.
+  })());
+});
+
+self.addEventListener('message', event => {
+  const client = event.source;
+  if (event.data?.type !== 'CHECK_APP_UPDATE' || !client?.url || !inApp(new URL(client.url))) return;
+  event.waitUntil((async () => {
+    // An already-downloaded update is usable even if this check has no connection.
+    await notifyUpdateReady(client);
+    await refreshShell().then(warmOptionalAssets).catch(() => undefined);
   })());
 });
 

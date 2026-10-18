@@ -34,6 +34,25 @@ See [Adding report formats](docs/report-formats.md) for the registry, generators
 
 ## Run locally
 
+### Offline updates
+
+The installed app still opens from its saved copy immediately. In production it checks for updates on
+launch, when brought to the foreground, when connectivity returns, and every five minutes while visible.
+Checks are throttled and run in the background; a weak signal never gates startup or the drive timer.
+The new HTML is activated only after all required production files have been cached successfully.
+A downloaded update refreshes the screen after ten seconds without interaction, preserving the log,
+active drive's original start time, and pending family-sync changes. Open forms, imports, account actions,
+or failed local saves defer the refresh. iOS may suspend the app while closed; checking resumes when opened.
+
+Older installations without this update handler may need to be fully closed and reopened after a good
+online session downloads this release (repeat once if the first launch served the older cached page).
+Do not delete the app or clear website data to update; that can remove unsynced driving logs.
+
+Builds use the GitHub commit SHA as their version. The build script adds every generated chunk to the
+offline asset list, so changing application code no longer depends on manually bumping a cache name.
+
+### Development
+
 ```bash
 npm install
 npm run dev

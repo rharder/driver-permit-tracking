@@ -6,8 +6,8 @@ import { runInNewContext } from 'node:vm';
 const source = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
 const scope = 'https://rharder.github.io/driver-permit-tracking/';
 const manifestUrl = scope + 'manifest.webmanifest?v=2';
-const cacheName = 'permit-hours-v9';
-const markup = version => '<!doctype html><link rel="stylesheet" href="./' + version + '.css"><script src="./' + version + '.js"></script>';
+const cacheName = 'permit-hours-v10';
+const markup = version => '<!doctype html><meta name="permit-hours-build" content="' + version + '"><link rel="stylesheet" href="./' + version + '.css"><script src="./' + version + '.js"></script>';
 const page = version => new Response(markup(version), { headers: { 'content-type': 'text/html' } });
 
 function deferred() {
@@ -22,6 +22,8 @@ function createWorker() {
   const requests = [];
   const pending = [];
   const timers = new Set();
+  const messages = [];
+  const client = { url: scope, postMessage: message => messages.push(message) };
   let activated = false;
   let skippedWaiting = false;
   const keyFor = request => new URL(typeof request === 'string' ? request : request.url, scope).href;
@@ -49,7 +51,7 @@ function createWorker() {
     self: {
       registration: { scope },
       location: { origin: new URL(scope).origin },
-      clients: { claim() { activated = true; } },
+      clients: { claim() { activated = true; }, async matchAll() { return [client]; } },
       skipWaiting() { skippedWaiting = true; },
       addEventListener(name, listener) { listeners[name] = listener; },
     },
@@ -67,7 +69,10 @@ function createWorker() {
     await Promise.all(work);
   }
   return {
-    caches, requests,
+    caches, requests, messages,
+    message(data, source = client) {
+      listeners.message({ data, source, waitUntil(promise) { pending.push(promise); } });
+    },
     get activated() { return activated; },
     get skippedWaiting() { return skippedWaiting; },
     setNetwork(handler) { network = handler; },
@@ -115,12 +120,60 @@ void test('new HTML is committed only after every required asset is cached', { t
   worker.setNetwork(async url => url === scope ? page('new') : url.endsWith('new.js') ? script.promise : new Response('asset'));
   assert.equal(await (await worker.request(scope, { mode: 'navigate' })).text(), markup('old'));
   assert.equal(await (await cache.match(scope)).text(), markup('old'));
+  assert.equal(worker.messages.length, 0, 'no ready message until all assets are present');
   script.resolve(new Response('new script'));
   await worker.finishBackground();
   assert.equal(await (await cache.match(scope)).text(), markup('new'));
   assert.equal(await (await cache.match(scope + 'new.js')).text(), 'new script');
   assert.ok(await cache.match(scope + 'new.css'));
   assert.ok(await cache.match(scope + 'old.js'), 'running old tabs retain their assets');
+  assert.equal(worker.messages.at(-1).version, 'new');
+});
+
+void test('a resumed app requests an update without navigation and gets an offline-ready notification', async () => {
+  const worker = createWorker();
+  const cache = await worker.seed();
+  worker.message({ type: 'CHECK_APP_UPDATE' });
+  await worker.finishBackground();
+  assert.deepEqual(worker.messages.map(message => message.version), ['old', 'new']);
+  assert.equal(await (await cache.match(scope)).text(), markup('new'));
+  worker.setNetwork(async () => { throw new Error('Offline'); });
+  worker.message({ type: 'CHECK_APP_UPDATE' });
+  await worker.finishBackground();
+  assert.equal(worker.messages.at(-1).version, 'new', 'cached update can be applied without network');
+});
+
+void test('failed update messages never announce incomplete builds or discard the saved shell', async () => {
+  const worker = createWorker();
+  const cache = await worker.seed();
+  worker.setNetwork(async url => url === scope ? page('new') : new Response('Missing', { status: 404 }));
+  worker.message({ type: 'CHECK_APP_UPDATE' });
+  await worker.finishBackground();
+  assert.deepEqual(worker.messages.map(message => message.version), ['old']);
+  assert.equal(await (await cache.match(scope)).text(), markup('old'));
+});
+
+void test('message checks ignore unrelated senders and unexpected commands', async () => {
+  const worker = createWorker();
+  await worker.seed();
+  worker.message({ type: 'CHECK_APP_UPDATE' }, { url: 'https://example.com/' });
+  worker.message({ type: 'CHECK_APP_UPDATE' }, { url: 'https://rharder.github.io/other/' });
+  worker.message({ type: 'UNKNOWN' });
+  await worker.finishBackground();
+  assert.equal(worker.requests.length, 0);
+  assert.equal(worker.messages.length, 0);
+});
+
+void test('a migrated worker activates without network and handles a resumed client check', async () => {
+  const worker = createWorker();
+  await worker.seed('previous', 'permit-hours-v9');
+  await worker.install();
+  await worker.activate();
+  assert.equal(worker.requests.length, 0, 'activation never waits for a weak connection');
+  worker.message({ type: 'CHECK_APP_UPDATE' });
+  await worker.finishBackground();
+  assert.equal(worker.messages.at(-1).version, 'new');
+  assert.equal(await (await (await worker.caches.open(cacheName)).match(scope)).text(), markup('new'));
 });
 
 void test('failed assets, HTTP errors and captive-portal pages do not replace the working app', async () => {
@@ -233,7 +286,7 @@ void test('activation preserves the preceding version for open tabs and leaves o
   await (await worker.caches.open('permit-hours-v99')).put('https://rharder.github.io/another/', page('other'));
   await worker.activate();
   assert.equal(worker.activated, true);
-  assert.deepEqual((await worker.caches.keys()).sort(), ['other-app-v1', 'permit-hours-v6', 'permit-hours-v9', 'permit-hours-v99']);
+  assert.deepEqual((await worker.caches.keys()).sort(), ['other-app-v1', 'permit-hours-v10', 'permit-hours-v6', 'permit-hours-v99']);
   worker.setNetwork(async () => { throw new Error('Offline'); });
   assert.equal(await (await worker.request(scope + 'previous.js')).text(), 'script');
   await worker.finishBackground();

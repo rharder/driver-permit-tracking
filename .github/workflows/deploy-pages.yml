@@ -30,6 +30,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Test app and offline update safety
+        run: npm test && npx tsc --noEmit
       - name: Build static site
         run: npm run build
       - name: Prepare project-site asset paths

@@ -351,6 +351,7 @@ h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp
 .role-help { margin: 13px 0 0; display: flex; gap: 8px; align-items: flex-start; color: var(--quiet); font-size: 11px; line-height: 1.5; }
 .role-help svg { flex: 0 0 auto; color: var(--green); }
 .print-instructions { display: none; }
+.app-update-note { margin: 12px 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; color: var(--green); background: var(--green-light); font-size: 12px; line-height: 1.5; }
 .print-pdf-body { display: grid; gap: 14px; font-size: 14px; line-height: 1.5; }
 .print-pdf-body p { margin: 0; }
 .print-pdf-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }

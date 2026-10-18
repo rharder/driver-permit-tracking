@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { matchesPendingUpload, snapshotSyncStatus } from './sync-status';
+import { checkpointSyncForReload, matchesPendingUpload, snapshotSyncStatus } from './sync-status';
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import {
   GoogleAuthProvider,
@@ -153,6 +153,7 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const lastLocalPayloadRef = useRef('');
   const localDirtyRef = useRef(false);
+  const authReadyRef = useRef(false);
 
   const updateState = useCallback((update: Partial<CloudSyncState>) => {
     setState((current) => ({ ...current, ...update }));
@@ -231,6 +232,7 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
 
     let unsubscribeAccess: (() => void) | undefined;
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      authReadyRef.current = true;
       const editsWhileConnecting = localDirtyRef.current;
       userRef.current = user;
       unsubscribeRef.current?.();
@@ -416,5 +418,17 @@ export function useFirebaseSync<T>({ data, localReady, onRemoteData }: UseFireba
     await batch.commit();
   }
 
-  return { state, signInWithGoogle, signOutUser, createHousehold, updateMembers };
+  const prepareForReload = () => {
+    return checkpointSyncForReload({
+      localReady, authReady: authReadyRef.current,
+      payloadJson: JSON.stringify(data), observedPayloadJson: lastLocalPayloadRef.current,
+      uid: userRef.current?.uid ?? null, familyId: familyIdRef.current,
+      role: roleRef.current, dirty: localDirtyRef.current,
+    }, (uid, familyId, payloadJson) => {
+      localStorage.setItem(PENDING_UPLOAD_KEY, JSON.stringify({ uid, familyId, payloadJson }));
+      return hasPendingUpload(uid, familyId, payloadJson);
+    });
+  };
+
+  return { state, signInWithGoogle, signOutUser, createHousehold, updateMembers, prepareForReload };
 }

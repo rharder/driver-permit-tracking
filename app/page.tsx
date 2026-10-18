@@ -62,6 +62,8 @@ import { FamilyMemberRow } from '@/components/family-member-row';
 import { Feedback } from '@/components/feedback';
 import { PrintLogDialog } from '@/components/print-log-dialog';
 import { updateActiveDriveWeather } from '@/lib/active-drive-weather';
+import { checkpointLocalLog } from '@/lib/app-updates';
+import { useAppUpdates } from '@/lib/use-app-updates';
 import { StateRequirementsDialog } from '@/components/state-requirements-dialog';
 import { ConditionFields, PracticeGoalFields } from '@/components/practice-goal-fields';
 import { calculatePractice, countingDescription, isPoorWeather, practiceError, validConditionFlags, type PracticeSettings } from '@/lib/practice-goals';
@@ -368,10 +370,6 @@ export default function Home() {
     window.addEventListener('online', updateOnline);
     window.addEventListener('offline', updateOnline);
 
-    if ('serviceWorker' in navigator) {
-      const base = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
-      navigator.serviceWorker.register(`${base}/sw.js`, { updateViaCache: 'none' }).catch(() => undefined);
-    }
     return () => {
       window.removeEventListener('online', updateOnline);
       window.removeEventListener('offline', updateOnline);
@@ -411,6 +409,12 @@ export default function Home() {
     }));
   }, []);
   const cloud = useFirebaseSync({ data: shareableData, localReady: ready, onRemoteData: acceptCloudData });
+  const updateReady = useAppUpdates({
+    ready,
+    busy: Boolean(driverDialogOpen || sessionDialogOpen || stateLookupOpen || accountDialogOpen
+      || sessionToDelete || csvImport || printDraft || cloudBusy || importingFile || newName.trim()),
+    checkpoint: () => checkpointLocalLog(localStorage, STORAGE_KEY, data, cloud.prepareForReload),
+  });
   const readOnly = cloud.state.role === 'viewer';
 
   const themedDrivers = useMemo(() => assignDriverThemes(data.drivers), [data.drivers]);
@@ -945,6 +949,8 @@ export default function Home() {
           </button>
         </div>
       </header>
+
+      {updateReady && <p className="app-update-note" role="status">Update downloaded. Applying after a short pause when you’re not editing. {data.active ? 'Your drive timer will continue.' : 'Your saved log will be preserved.'}</p>}
 
       {data.drivers.length === 0 ? (
         <section className="welcome-panel">

@@ -33,7 +33,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <head>{REPORT_ASSETS.map(path => <link key={path} rel="preload" href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}${path}`} as="fetch" crossOrigin="anonymous" />)}</head>
+      <head><meta name="permit-hours-build" content={process.env.NEXT_PUBLIC_APP_BUILD ?? 'development'} />{REPORT_ASSETS.map(path => <link key={path} rel="preload" href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}${path}`} as="fetch" crossOrigin="anonymous" />)}</head>
       <body>{children}</body>
     </html>
   );

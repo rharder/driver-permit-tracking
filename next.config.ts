@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
   assetPrefix: basePath || undefined,
   images: { unoptimized: true },
   env: {
+    NEXT_PUBLIC_APP_BUILD: process.env.GITHUB_SHA ?? 'development',
     NEXT_PUBLIC_BASE_PATH: basePath,
     NEXT_PUBLIC_SITE_URL: isGitHubPages
       ? `https://${process.env.GITHUB_REPOSITORY_OWNER}.github.io/${repositoryName}/`
