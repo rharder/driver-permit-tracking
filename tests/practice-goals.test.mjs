@@ -43,9 +43,52 @@ void test('overall completion requires every goal and never rounds an incomplete
   const drives = [drive('a', '2026-09-01T10:00Z', 60)];
   const result = calculatePractice(drives, { totalGoal: 1, nightGoal: .5 });
   assert.equal(result.goals[0].percent, 100);
-  assert.equal(result.percent, 0);
+  assert.equal(result.percent, 50);
   assert.equal(result.complete, false);
   assert.equal(calculatePractice([drive('b', '2026-09-01T10:00Z', 59.999)], { totalGoal: 1, nightGoal: 0 }).percent, 99);
+});
+
+void test('overall progress follows total hours until the nighttime requirement becomes binding', () => {
+  for (const [dayHours, nightHours, expected] of [
+    [0, 0, 0], [5, 0, 10], [30, 0, 60], [40, 0, 80], [45, 0, 80], [60, 0, 80],
+    [45, 1, 82], [45, 5, 90], [40, 9, 98], [40, 10, 100], [5, 10, 30], [5, 45, 100],
+  ]) {
+    const result = calculatePractice([
+      drive('day', '2026-09-01T10:00Z', dayHours * 60),
+      drive('night', '2026-09-10T20:00Z', nightHours * 60, { period: 'night' }),
+    ], base);
+    assert.equal(result.percent, expected, `${dayHours}h day + ${nightHours}h night`);
+    assert.equal(result.complete, expected === 100);
+    assert.equal(result.counted.total, (dayHours + nightHours) * hour, 'progress cap must not discard actual hours');
+  }
+});
+
+void test('overlapping condition deficits constrain progress without double-counting remaining hours', () => {
+  const driver = { ...base, practice: { poorWeatherGoal: 5, challengingGoal: 15 } };
+  const day = drive('day', '2026-09-01T10:00Z', 50 * 60);
+  const result = calculatePractice([day], driver);
+  assert.equal(result.percent, 70, '15 challenging hours can also satisfy 10 night and 5 weather hours');
+  const nightRain = drive('night-rain', '2026-09-10T20:00Z', 5 * 60, { period: 'night', weather: 'Rain' });
+  assert.equal(calculatePractice([day, nightRain], driver).percent, 80);
+  assert.equal(calculatePractice([day, nightRain, drive('night', '2026-09-11T20:00Z', 10 * 60, { period: 'night' })], driver).percent, 100);
+});
+
+void test('explicit daytime goals cap progress when nighttime driving exceeds its requirement', () => {
+  const result = calculatePractice([
+    drive('night', '2026-09-01T20:00Z', 50 * 60, { period: 'night' }),
+  ], { ...base, practice: { dayGoal: 30, poorWeatherGoal: 5 } });
+  assert.equal(result.percent, 40, '30 daytime hours remain; 5 of those may also be poor-weather practice');
+  assert.equal(result.complete, false);
+});
+
+void test('overall progress uses credited hours after the stage cutoff and shared daily cap', () => {
+  const driver = { ...base, practice: { countFrom: '2026-09-01T00:00Z', maxMinutesPerDay: 60, timeZone: 'UTC' } };
+  const result = calculatePractice([
+    drive('old', '2026-08-01T10:00Z', 50 * 60),
+    drive('current', '2026-09-01T10:00Z', 5 * 60),
+  ], driver);
+  assert.equal(result.counted.total, hour);
+  assert.equal(result.percent, 2);
 });
 
 void test('daytime and weather quotas can remain incomplete after total and night goals are met', () => {

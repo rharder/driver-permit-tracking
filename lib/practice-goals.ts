@@ -118,7 +118,16 @@ export function calculatePractice(drives: PracticeDrive[], driver: GoalDriver) {
     percent: Math.min(100, Math.floor(counted[key] / (targets[key] * 3_600_000) * 100)),
     met: counted[key] >= targets[key] * 3_600_000,
   }));
-  return { counted, creditedById, goals, complete: goals.length > 0 && goals.every(goal => goal.met), percent: goals.length ? Math.min(...goals.map(goal => goal.percent)) : 0 };
+  const complete = goals.length > 0 && goals.every(goal => goal.met);
+  const remaining = (key: GoalCategory) => Math.max(0, targets[key] * 3_600_000 - counted[key]);
+  // Overall progress uses the total-hour goal, reserving space for practice still
+  // required in specific categories. Day and night are mutually exclusive, but
+  // weather/challenging hours can overlap those hours and each other.
+  const remainingMs = Math.max(remaining('total'), remaining('day') + remaining('night'), remaining('poorWeather'), remaining('challenging'));
+  const targetMs = driver.totalGoal * 3_600_000;
+  const percent = complete ? 100 : targetMs > 0
+    ? Math.max(0, Math.min(99, Math.floor((targetMs - remainingMs) * 100 / targetMs))) : 0;
+  return { counted, creditedById, goals, complete, percent };
 }
 
 export function countingDescription(settings?: PracticeSettings) {

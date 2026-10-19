@@ -1066,7 +1066,7 @@ export default function Home() {
               {totalTime > progress.counted.total && <p className="counting-note">{formatDuration(totalTime)} recorded overall · {formatDuration(progress.counted.total)} counted toward these goals. Full drives remain in history.</p>}
               <div className="encouragement">
                 <Sun size={19} />
-                <p><strong>{progress.complete ? 'Practice goals reached!' : 'Keep it rolling.'}</strong> {progress.complete ? 'Review your log and state requirements before applying.' : 'Overall completion follows your least-complete goal, including any required conditions.'}</p>
+                <p><strong>{progress.complete ? 'Practice goals reached!' : 'Keep it rolling.'}</strong> {progress.complete ? 'Review your log and state requirements before applying.' : 'Overall progress follows your total hours, with space reserved for any required day, night, or condition hours still to go.'}</p>
               </div>
               <div className="privacy-note">{cloud.state.user ? <Cloud size={16} /> : <Download size={16} />}<p><strong>{cloud.state.user ? 'Offline-safe cloud sync.' : 'Stored on this device.'}</strong> {cloud.state.user ? 'Changes save locally first and sync when a connection is available.' : 'Sign in to sync with your family, or export a backup.'}</p></div>
               <Feedback online={online} />
