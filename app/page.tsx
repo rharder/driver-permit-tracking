@@ -63,6 +63,7 @@ import { Feedback } from '@/components/feedback';
 import { PrintLogDialog } from '@/components/print-log-dialog';
 import { updateActiveDriveWeather } from '@/lib/active-drive-weather';
 import { checkpointLocalLog } from '@/lib/app-updates';
+import { appVersionLabel } from '@/lib/app-version';
 import { useAppUpdates } from '@/lib/use-app-updates';
 import { StateRequirementsDialog } from '@/components/state-requirements-dialog';
 import { ConditionFields, PracticeGoalFields } from '@/components/practice-goal-fields';
@@ -172,6 +173,7 @@ type SavedImportMapping = {
 };
 
 const STORAGE_KEY = 'permit-miles-data-v1';
+const APP_BUILD = process.env.NEXT_PUBLIC_APP_BUILD ?? 'development';
 const IMPORT_MAPPINGS_KEY = 'permit-hours-import-mappings-v1';
 const EMPTY_DATA: AppData = { version: 1, drivers: [], sessions: [], active: null, selectedId: null };
 const weatherOptions: Weather[] = ['Clear', 'Cloudy', 'Rain', 'Snow', 'Other'];
@@ -1098,6 +1100,8 @@ export default function Home() {
           </section>
         </>
       )}
+
+      <footer className="app-footer"><span title={`Build: ${APP_BUILD}`}>{appVersionLabel(APP_BUILD)}</span></footer>
 
       {printDraft && <PrintLogDialog driver={printDraft.driver} sessions={printDraft.sessions} onClose={() => setPrintDraft(null)} />}
       <p className="print-instructions">Use Permit Hours’ Print button to choose a report, then open or download that PDF and print it.</p>
