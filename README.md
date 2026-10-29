@@ -50,9 +50,11 @@ Do not delete the app or clear website data to update; that can remove unsynced 
 
 Builds use the GitHub commit SHA as their version. The build script adds every generated chunk to the
 offline asset list, so changing application code no longer depends on manually bumping a cache name.
-The footer shows **Version** followed by the first seven characters of that commit, so you can identify
-the copy running on each device, even offline. Local builds show **Development version**. The label identifies
-the installed build; it does not claim that an offline device has checked for the latest release.
+The footer shows an increasing deployment number and the short commit ID, such as **Version 42 · c56e564**,
+so you can identify the copy running on each device, even offline. The number comes from the GitHub Pages
+workflow run number: each new run increments it, rerunning the same run keeps it, and failed/canceled runs may
+leave gaps. Local builds show **Development version**; builds with a commit but no run number show the short
+commit ID. The label identifies the installed build; it does not claim an offline device has checked for updates.
 
 ### Development
 

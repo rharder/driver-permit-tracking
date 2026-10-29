@@ -1,3 +1,5 @@
-export function appVersionLabel(build: string = 'development'): string {
-  return !build || build === 'development' ? 'Development version' : `Version ${build.slice(0, 7)}`;
+export function appVersionLabel(build: string = 'development', version?: string): string {
+  if (!build || build === 'development') return 'Development version';
+  const commit = build.slice(0, 7);
+  return version ? `Version ${version} · ${commit}` : `Version ${commit}`;
 }

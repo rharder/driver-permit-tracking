@@ -174,6 +174,7 @@ type SavedImportMapping = {
 
 const STORAGE_KEY = 'permit-miles-data-v1';
 const APP_BUILD = process.env.NEXT_PUBLIC_APP_BUILD ?? 'development';
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
 const IMPORT_MAPPINGS_KEY = 'permit-hours-import-mappings-v1';
 const EMPTY_DATA: AppData = { version: 1, drivers: [], sessions: [], active: null, selectedId: null };
 const weatherOptions: Weather[] = ['Clear', 'Cloudy', 'Rain', 'Snow', 'Other'];
@@ -1101,7 +1102,7 @@ export default function Home() {
         </>
       )}
 
-      <footer className="app-footer"><span title={`Build: ${APP_BUILD}`}>{appVersionLabel(APP_BUILD)}</span></footer>
+      <footer className="app-footer"><span title={`Build: ${APP_BUILD}`}>{appVersionLabel(APP_BUILD, APP_VERSION)}</span></footer>
 
       {printDraft && <PrintLogDialog driver={printDraft.driver} sessions={printDraft.sessions} onClose={() => setPrintDraft(null)} />}
       <p className="print-instructions">Use Permit Hours’ Print button to choose a report, then open or download that PDF and print it.</p>
