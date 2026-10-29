@@ -53,10 +53,17 @@ offline asset list, so changing application code no longer depends on manually b
 
 ### Development
 
+Use Node.js 22.13 or newer (CI uses Node 22).
+
 ```bash
-npm install
+npm ci
 npm run dev
 ```
+
+For a new computer or a new development chat, start with the
+[development handoff](docs/development-handoff.md) and
+[computer migration checklist](docs/computer-migration.md). The checklist distinguishes committed files from
+private backups and credentials that must not be committed.
 
 ## Deploy to GitHub Pages
 
@@ -100,8 +107,9 @@ It reads your saved log on the device first and syncs separately in the backgrou
 means the family log is synced: that status requires a server-backed snapshot or an acknowledged upload.
 
 App updates download in the background. The cached page is replaced only after its required scripts and styles are
-fully cached; failed or stalled downloads leave the last working copy intact. The updated app is used on a later
-open/reload, never by interrupting an active drive. PDF import files are cached separately and do not delay startup.
+fully cached; failed or stalled downloads leave the last working copy intact. A ready update can refresh the screen
+after a safe idle period, including during an active drive, while preserving its original start time and pending sync
+changes. Open forms and failed checkpoints defer the refresh. PDF import files are cached separately and do not delay startup.
 
 Open the app once with a working connection to install the offline copy (and to receive this startup improvement).
 A new browser or a device whose browser storage was cleared needs another successful load. Keep JSON backups;
