@@ -133,3 +133,9 @@ Choose **Feedback** beneath Driving Goals (or on the initial setup screen) to op
 Posting requires a GitHub account and an internet connection; browsing does not require an account. Issues are public.
 The app provides generic writing prompts but never automatically attaches account details or driving data. Remove personal
 information from descriptions and screenshots before posting. Feedback is not queued while offline.
+
+## License
+
+Permit Hours original code is released under [The Unlicense](LICENSE), dedicating it to the public domain.
+Third-party dependencies and bundled third-party assets, including official state forms, retain their own
+licenses and applicable terms; they are not relicensed by this dedication.
